@@ -39,6 +39,8 @@ VIEWS = {
     'ActionsBrokenMains':     {'since': SINCE, 'all': True},
     'ActionsBrokenPullRequests': {'since': SINCE30},
     'ActionsRunCount':        {'repo': REPO, 'since': SINCE},
+    'ActionsRunTime':         {'repo': REPO, 'since': SINCE},
+    'ActionsByActor':         {'repo': REPO, 'since': SINCE},
     'ActionsRecentRuns':      {'repo': REPO, 'since': SINCE, 'limit': 50},
     'ActionsWorkflowSummary': {'repo': REPO, 'since': SINCE},
     'ActionsSlowestRuns':     {'repo': REPO, 'since': SINCE, 'limit': 5},

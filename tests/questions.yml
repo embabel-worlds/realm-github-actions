@@ -49,6 +49,9 @@
 - question: "builds per day in {repo} over the last two weeks"
   expect: { nonEmpty: true }
 
+- question: "who triggered the most runs in {repo} in the last 7 days"
+  expect: { matchesView: { name: ActionsByActor, column: runs, args: { repo: "{repo}" } } }
+
 # The fleet — every followed repository at once.
 - question: "which repositories are we following"
   expect: { matchesView: { name: ActionsWatchlist, column: repo } }
@@ -60,6 +63,9 @@
   expect: { minRows: 0 }
 
 # The adversarial half: not in the source.
+- question: "who made the most commits in {repo}"
+  adversarial: true
+  expect: { minRows: 0 }
 - question: "how much did {repo} spend on Actions minutes last month"
   adversarial: true
   expect: { minRows: 0 }

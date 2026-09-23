@@ -146,10 +146,16 @@ test('renders every panel from the fixtures, drives every path, no console error
   await page.fill('#q', 'what is the average build time');
   await page.click('#askGo');
   await expect(page.locator('#answer .meta')).toContainText('ActionsRunTime');
-  // an unclaimed question goes to the model and is marked unverified, Cypher shown
-  await page.fill('#q', 'who triggered the most runs');
+  // a question about data the realm does not hold is answered plainly, no model call
+  await page.fill('#q', 'who made the most commits');
   await page.click('#askGo');
-  await expect(page.locator('#answer .note')).toContainText('Unverified');
+  await expect(page.locator('#answer .note.bad')).toContainText('does not hold commits');
+  await page.click('#nearestGo');
+  await expect(page.locator('#answer .meta')).toContainText('ActionsByActor');
+  // an unclaimed question goes to the model, labelled, Cypher shown
+  await page.fill('#q', 'which branch has the most runs');
+  await page.click('#askGo');
+  await expect(page.locator('#answer .note')).toContainText('No saved view answers this');
   await expect(page.locator('#answer details pre')).toContainText('MATCH');
   // the badge, visible and inside the viewport
   const badge = page.locator('#embabel-badge');

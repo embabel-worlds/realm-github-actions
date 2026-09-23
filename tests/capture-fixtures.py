@@ -49,6 +49,7 @@ CALLS = [
     ('ActionsBrokenPullRequests', {'since': SINCE, 'limit': 100}),
     ('ActionsRunCount', {'repo': REPO, 'since': SINCE}),
     ('ActionsRunTime', {'repo': REPO, 'since': SINCE}),
+    ('ActionsByActor', {'repo': REPO, 'since': SINCE, 'limit': 25}),
     ('ActionsSlowestRuns', {'repo': REPO, 'since': SINCE, 'limit': 1}),
     ('ActionsWorkflowSummary', {'repo': REPO, 'since': SINCE}),
     ('ActionsDailyRuns', {'repo': REPO, 'since': SINCE}),

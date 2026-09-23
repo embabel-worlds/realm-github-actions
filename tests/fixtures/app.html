@@ -12,8 +12,8 @@
 <script type="application/embabel-app+json">
 {"version":1,"name":"ci-health","title":"CI Health",
  "description":"GitHub Actions CI for one repository over realm-github-actions: ask in words, run any of the realm's views with a generated form, and read the dashboard — health per workflow, trend, slowest and failed runs with their jobs, failing steps, flaky jobs, failure themes and a standup briefing. Every figure links back to GitHub.",
- "requires":{"lenses":[],"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime"],"realms":["github-actions"],"namespaces":["repository"]},
- "dependsOn":{"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime"],"realms":["github-actions"],"gateway":["kg","repository"]}}
+ "requires":{"lenses":[],"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime","ActionsByActor"],"realms":["github-actions"],"namespaces":["repository"]},
+ "dependsOn":{"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime","ActionsByActor"],"realms":["github-actions"],"gateway":["kg","repository"]}}
 </script>
 <style>
   :root{--bg:#0a0a0f;--surface:#13131a;--surface2:#171722;--border:#1e1e2e;--cyan:#63c0f5;--green:#3fd73c;--dim:#6b7280;
@@ -209,6 +209,7 @@
 
   <h3>3. When it looks wrong</h3>
   <ul>
+    <li><strong>"This realm does not hold …":</strong> commits, individual tests, coverage, billing, runner inventory, logs, issues and reviews, deployments are not in the source this realm reads. The message names the nearest thing it does hold. The model is not asked.</li>
     <li><strong>Failed runs, failing steps, causes are empty:</strong> no run in the window concluded failure. Green, not broken.</li>
     <li><strong>Flaky is empty:</strong> nothing was re-run to success in the last 30 days, so no job could both fail and pass.</li>
     <li><strong>A red notice</strong> is the lookup failing: a token without access, a repository that does not exist, GitHub unreachable. It is never shown as a zero.</li>
@@ -386,6 +387,7 @@
     { re: /\b(prs?|pull[- ]requests?)\b.*\b(broken|red|failing)\b|\b(broken|red|failing)\b.*\b(prs?|pull[- ]requests?)\b/i, view: 'ActionsBrokenPullRequests', args: function (c) { return { since: c.since, limit: 100 }; }, fleet: true },
     { re: /\b(follow(ing|ed)?|watch(ing|ed|list)?)\b.*\brepos/i, view: 'ActionsWatchlist', args: function () { return {}; }, fleet: true },
     { re: /\b(average|mean|median|typical|p90)\b.*\b(build|run|ci|pipeline)\b.*\b(time|duration|long)\b|how long (do|does|are) .*\b(build|run)s?\b/i, view: 'ActionsRunTime', args: function (c) { return { repo: c.repo, since: c.since }; } },
+    { re: /\bwho\b.*\b(triggered|ran|runs|started|pushed|breaks?|broke)\b|\bby (person|actor|user|developer)\b|\bper (person|actor|user|developer)\b|\bwhich (person|user|developer)\b/i, view: 'ActionsByActor', args: function (c) { return { repo: c.repo, since: c.since, limit: 25 }; } },
     { re: /\b(success|pass|failure) rate\b|how many .*\b(runs?|builds?)\b|\bcount\b.*\bruns?\b/i, view: 'ActionsRunCount', args: function (c) { return { repo: c.repo, since: c.since }; } },
     { re: /\bfails? (the )?most\b|\bmost (often|frequently)\b|\bper workflow\b|\bby workflow\b|how are (the |our )?builds|\bci health\b|\bhealth\b/i, view: 'ActionsWorkflowSummary', args: function (c) { return { repo: c.repo, since: c.since }; } },
     { re: /\b(slowest|longest|took the longest|long[- ]running)\b/i, view: 'ActionsSlowestRuns', args: function (c) { return { repo: c.repo, since: c.since, limit: 15 }; } },
@@ -401,6 +403,19 @@
     { re: /\b(failed|failing|broke|broken|red)\b.*\b(runs?|builds?)\b|\bwhat failed\b|\b(runs?|builds?)\b.*\b(failed|failing|broke)\b/i, view: 'ActionsFailedRuns', args: function (c) { return { repo: c.repo, since: c.since, limit: 50 }; } },
     { re: /\b(recent|latest|last|newest) (runs?|builds?)\b|what ran/i, view: 'ActionsRecentRuns', args: function (c) { return { repo: c.repo, since: c.since, limit: 50 }; } },
   ];
+  /* What this realm does NOT hold. Said plainly, with the nearest thing it does hold, instead of
+     letting the model compose an answer from the wrong rows. */
+  var NOT_HELD = [
+    { re: /\bcommits?\b|\bcommitters?\b|\blines of code\b|\bloc\b/i, what: 'commits', nearest: 'It holds workflow runs, and each run carries the GitHub login that triggered it. Ask "who triggered the most runs" for that.', q: 'who triggered the most runs' },
+    { re: /\btest (case|class|method|name)s?\b|\bwhich tests?\b|\bunit tests?\b|\bassertion/i, what: 'individual tests', nearest: 'It holds jobs and the step that failed, plus GitHub\'s failure annotations. Ask "what keeps failing" for the failing steps.', q: 'what keeps failing' },
+    { re: /\bcoverage\b/i, what: 'code coverage', nearest: 'Nothing here reads coverage reports.' },
+    { re: /\b(cost|spend|spent|bill(ing)?|minutes used|price|paid)\b/i, what: 'billing or minutes', nearest: 'It holds run and queue times, not the bill. Ask "what is the average build time" for time.', q: 'what is the average build time' },
+    { re: /\brunners?\b.*\b(online|offline|idle|busy|how many)\b|\bself-hosted\b/i, what: 'runner inventory', nearest: 'Each job records the runner it ran on; there is no list of runners.' },
+    { re: /\blogs?\b|\bstack ?trace\b|\berror message\b|\bstdout\b/i, what: 'logs', nearest: 'It holds the failed step and GitHub\'s failure annotations. Ask "why do the builds fail" for the recurring causes.', q: 'why do the builds fail' },
+    { re: /\bissues?\b|\breviews?\b|\bcomments?\b|\bmerged\b|\bmerge time\b/i, what: 'issues, reviews or merges', nearest: 'realm-github answers those on the same repository node. This realm knows a pull request only as the runs on its branch: ask "which PRs are broken".', q: 'which PRs are broken' },
+    { re: /\b(deploy|deployment|release|environment)s?\b/i, what: 'deployments or releases', nearest: 'It knows a workflow named for a deploy only as runs. Ask "how are the builds doing" per workflow.', q: 'how are the builds doing' },
+  ];
+  function notHeld(q) { for (var i = 0; i < NOT_HELD.length; i++) if (NOT_HELD[i].re.test(q)) return NOT_HELD[i]; return null; }
   function route(q, c) {
     for (var i = 0; i < ROUTES.length; i++) { var m = q.match(ROUTES[i].re); if (m) { if (!ROUTES[i].fleet && !c.repo) return null; return { view: ROUTES[i].view, args: ROUTES[i].args(c, m) }; } }
     return null;
@@ -408,6 +423,12 @@
   function ask() {
     var q = $('q').value.trim(); if (!q) return;
     var c = ctx();
+    var nh = notHeld(q);
+    if (nh) {
+      $('answer').innerHTML = '<div class="note bad"><strong>This realm does not hold ' + esc(nh.what) + '.</strong> ' + esc(nh.nearest) + (nh.q ? ' <button class="chip" type="button" id="nearestGo">' + esc(nh.q) + '</button>' : '') + '</div>';
+      var nb = $('nearestGo'); if (nb) nb.addEventListener('click', function () { $('q').value = nh.q; ask(); });
+      return;
+    }
     var r = route(q, c);
     if (r) {
       var out0 = $('answer'); out0.innerHTML = '<div class="muted">Running the view <code>' + esc(r.view) + '</code> that answers this…</div>'; $('askGo').disabled = true;
@@ -432,7 +453,7 @@
         var rows = rowsOf(d), w = warningsOf(d);
         var html = '';
         if (d.error) html += '<div class="note bad"><strong>The question could not be answered.</strong> ' + esc(d.error) + '</div>';
-        html += '<div class="note"><strong>Unverified.</strong> No saved view claims this question, so the model composed its own query over the same rows. The rows are real; the window, grouping or denominator may differ from the views\'. Open <em>what ran</em> to check it.</div>';
+        html += '<div class="note"><strong>No saved view answers this, so the model wrote a query from the realm\'s schema.</strong> Treat the rows as a lead, not a figure: its window, grouping or denominator may not match the panels. <em>What ran</em> below is exactly the query.</div>';
         html += rows.length ? grid(rows.slice(0, 200)) : '<div class="empty">No rows. Either nothing matches, or the sources do not carry this — open <em>what ran</em> to see which.</div>';
         html += warnBlock(w);
         html += '<div class="meta"><span class="muted">asked: ' + esc(q) + '</span></div><div class="meta"><span>' + rows.length + (rows.length === 200 ? '+' : '') + ' rows</span><span>' + (d.apiCalls == null ? '' : d.apiCalls + ' GitHub calls') + '</span><span>' + (d.llmCalls ? d.llmCalls + ' model call' + (d.llmCalls > 1 ? 's' : '') : 'no model call in the query') + '</span><span>' + (d.durationMs ? Math.round(d.durationMs / 100) / 10 + ' s' : '') + '</span></div>';

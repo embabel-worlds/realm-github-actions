@@ -35,8 +35,8 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 - `producers/` — four remote producers. `runsByRepo` is the live door with pushdown on
   `created_at`, `head_branch`, `event`, `actor` and `conclusion`; `runHistoryByRepo` is the
   same endpoint read as calendar periods (see *Caching*).
-- `views/` — the answer surface, one per question: `actions.yml` (counts, run time, summary,
-  slowest, failed, trend, retries, workflows), `jobs.yml` (a run's jobs, slowest jobs, failing steps,
+- `views/` — the answer surface, one per question: `actions.yml` (counts, run time, by actor,
+  summary, slowest, failed, trend, retries, workflows), `jobs.yml` (a run's jobs, slowest jobs, failing steps,
   flaky jobs), `intelligence.yml` (failure themes with `themes()`, the standup briefing with
   `synthesize()`, both in-query), `fleet.yml` (the watchlist, broken mains, broken PRs).
 - `wasm/handlers.ts` — `ciWatch`, a weekday-morning schedule over the watchlist: what is red
@@ -44,8 +44,9 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
   adopts it before it fires.
 - `apps/ci-health.html` — **CI Health**: a picker over the repositories you follow (filter,
   swap, follow and unfollow), an ask bar in words that routes a question a view claims to that
-  view and marks anything the model composes as unverified, a Fleet tab of broken mains and
-  broken PRs,
+  view, says plainly when the question is about something the realm does not hold (commits,
+  tests, coverage, billing, logs, issues) with the nearest thing it does, and marks anything
+  the model composes as unverified, a Fleet tab of broken mains and broken PRs,
   the per-repository dashboard, every view runnable from a generated form with the Cypher that
   ran, and a *How it works* page that reads each view back from the server.
 - `skills/github-actions/SKILL.md` — question → view, for an assistant.

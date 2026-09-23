@@ -96,6 +96,33 @@
            round(maxSeconds / 60.0, 1) AS longestRunMinutes,
            round(avgQueue, 0) AS avgQueueSeconds
 
+- name: ActionsByActor
+  description: >-
+    Who triggers the runs: per actor over a window, runs triggered, how many failed, and the
+    failure rate — most runs first. "Who triggered the most runs", "who runs the most builds",
+    "runs by person", "who breaks the build most". NOTE: this realm holds no commits; actor is
+    the GitHub login whose push, pull request or dispatch started the run.
+  params:
+    repo:  { type: string, default: "", description: "Repository as owner/repo; empty = every followed repository." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 31; ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+    limit: { type: int, default: 25, description: "How many actors." }
+  cypher: |
+    MATCH (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH w, run, run.created_at AS createdAt, run.conclusion AS conclusion, w.full_name AS repo, run.actor AS actor
+    WHERE ($repo = '' OR repo = $repo)
+      AND createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+    WITH actor, count(run) AS runs,
+         sum(CASE WHEN conclusion = 'failure' THEN 1 ELSE 0 END) AS failed,
+         collect(DISTINCT repo) AS repos
+    ORDER BY runs DESC, actor ASC
+    WITH collect({actor: actor, runs: runs, failed: failed, failureRatePct: round(100.0 * failed / runs, 1), repos: repos}) AS rows
+    UNWIND rows[0..$limit] AS row
+    RETURN row.actor AS actor, row.runs AS runs, row.failed AS failed, row.failureRatePct AS failureRatePct, row.repos AS repos
+
 - name: ActionsRecentRuns
   description: >-
     The runs in a window, newest first, each with its workflow, branch, trigger, conclusion,
