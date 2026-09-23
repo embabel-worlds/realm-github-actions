@@ -2,21 +2,24 @@
 # Cypher over the join surface. Every view pins the repository from its `repo` parameter.
 #
 # TWO DOORS. Windowed analytics (count, summary, trend, slowest, failures, flakiness, themes,
-# briefing) read HAS_RUN_HISTORY: the last 31 days as calendar periods, one GitHub call per
-# day per repository, closed days cached for the life of the process — a cold read of a
-# repository costs ~31 small calls once, every later read of any window costs at most one.
-# "Right now" views (recent runs, a run's jobs, and the fleet's broken mains and PRs) read
-# HAS_WORKFLOW_RUN live, with a literal `since` pushed down to GitHub's `created` filter.
+# briefing), the fleet and a run's jobs read HAS_RUN_HISTORY: this month and last as calendar
+# periods (at least 31 days), a closed month cached for 400 days, the current month refreshed
+# every 30 minutes — a cold read of a repository is one page per hundred runs in the two
+# months (about a dozen calls for a busy repository), every later read of any window is 0.
+# "Right now" is ActionsRecentRuns alone, on HAS_WORKFLOW_RUN live with a literal `since`
+# pushed down to GitHub's `created` filter.
 #
 # ONE CACHE KEY PER REPOSITORY on the history door. The engine keys a fetch by the anchor AND
 # by every predicate it can attach to the fetched node — a literal compared against a node
 # property (`run.status = 'completed'`, `run.created_at >= '2026-…'`) counts even AFTER a
-# `WITH run`, and so does a LIMIT on the final RETURN. Each distinct set is its own 31-call
-# read. So every history view (a) projects the properties it filters on into variables first
+# `WITH run` — AND by the LIMIT of a terminal query (each LIMIT value is its own read). So
+# every history view (a) projects the properties it filters on into variables first
 # (`WITH run, run.created_at AS createdAt, run.status AS status, …`) and filters on THOSE, and
-# (b) puts its LIMIT on a `WITH` that carries the order key (`WITH run, createdAt ORDER BY
-# createdAt DESC LIMIT $n`), never on the RETURN. Then every view and every window shares the
-# one cached read. Measured: 0 calls and ~150 ms per view once a repository has been read.
+# (b) limits a terminal result by ORDER BY + collect + list slice (`UNWIND rows[0..$limit]`),
+# never with LIMIT. A view that hops on (jobs of the narrowed runs) is the one place a LIMIT
+# stays: `WITH run, createdAt ORDER BY createdAt DESC LIMIT $n` before the hop shares the
+# read AND bounds the hop's anchors — a predicate on a projected variable does not bound them.
+# Measured: 0 calls and ~150 ms per view once a repository has been read.
 #
 # WINDOWS. Three parameters, same on every windowed view:
 #   since  — ISO-8601 lower bound on created_at; overrides `days`. On the live door it is
@@ -141,13 +144,15 @@
       AND status = 'completed'
     WITH run, createdAt, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
     ORDER BY runSeconds DESC, createdAt DESC
-    LIMIT $limit
-    RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
-           run.head_branch AS branch, run.conclusion AS conclusion,
-           round(runSeconds / 60.0, 1) AS runMinutes, runSeconds,
-           duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds,
-           createdAt, run.html_url AS url
-    ORDER BY runSeconds DESC, createdAt DESC
+    WITH collect({runId: toInteger(run.id), workflow: CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END, title: run.display_title,
+                   branch: run.head_branch, conclusion: run.conclusion,
+                   runMinutes: round(runSeconds / 60.0, 1), runSeconds: runSeconds,
+                   queueSeconds: duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds,
+                   createdAt: createdAt, url: run.html_url}) AS rows
+    UNWIND rows[0..$limit] AS row
+    RETURN row.runId AS runId, row.workflow AS workflow, row.title AS title, row.branch AS branch,
+           row.conclusion AS conclusion, row.runMinutes AS runMinutes, row.runSeconds AS runSeconds,
+           row.queueSeconds AS queueSeconds, row.createdAt AS createdAt, row.url AS url
 
 - name: ActionsFailedRuns
   description: >-
@@ -169,13 +174,16 @@
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
       AND conclusion = 'failure'
       AND ($branch = '' OR branch = $branch)
-    WITH run, createdAt ORDER BY createdAt DESC LIMIT $limit
-    RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
-           run.head_branch AS branch, run.event AS event, toInteger(run.run_attempt) AS attempt,
-           run.actor AS actor, createdAt,
-           round(duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds / 60.0, 1) AS runMinutes,
-           run.html_url AS url
-    ORDER BY createdAt DESC
+    WITH run, createdAt ORDER BY createdAt DESC
+    WITH collect({runId: toInteger(run.id), workflow: CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END, title: run.display_title,
+                   branch: run.head_branch, event: run.event, attempt: toInteger(run.run_attempt),
+                   actor: run.actor, createdAt: createdAt,
+                   runMinutes: round(duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds / 60.0, 1),
+                   url: run.html_url}) AS rows
+    UNWIND rows[0..$limit] AS row
+    RETURN row.runId AS runId, row.workflow AS workflow, row.title AS title, row.branch AS branch,
+           row.event AS event, row.attempt AS attempt, row.actor AS actor, row.createdAt AS createdAt,
+           row.runMinutes AS runMinutes, row.url AS url
 
 - name: ActionsDailyRuns
   description: >-
@@ -219,11 +227,13 @@
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
       AND attempt > 1 AND conclusion = 'success'
-    WITH run, createdAt ORDER BY createdAt DESC LIMIT $limit
-    RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
-           run.head_branch AS branch, toInteger(run.run_attempt) AS attempts,
-           run.actor AS actor, createdAt, run.html_url AS url
-    ORDER BY createdAt DESC
+    WITH run, createdAt ORDER BY createdAt DESC
+    WITH collect({runId: toInteger(run.id), workflow: CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END, title: run.display_title,
+                   branch: run.head_branch, attempts: toInteger(run.run_attempt),
+                   actor: run.actor, createdAt: createdAt, url: run.html_url}) AS rows
+    UNWIND rows[0..$limit] AS row
+    RETURN row.runId AS runId, row.workflow AS workflow, row.title AS title, row.branch AS branch,
+           row.attempts AS attempts, row.actor AS actor, row.createdAt AS createdAt, row.url AS url
 
 - name: ActionsWorkflows
   description: >-

@@ -1,7 +1,8 @@
 # The fleet: views that sweep EVERY followed repository (the ActionsWatch watchlist) in one
-# query, through the watchlist's HISTORY door — so after a repository's first read (31 calls,
-# once per process) the whole fleet answers from cache, and today's slice refreshes every five
-# minutes. Predicates sit behind a WITH so the fetch is shared with every other history view.
+# query, through the watchlist's HISTORY door — so after a repository's first read (about a
+# dozen calls, once) the whole fleet answers from cache; the current month refreshes every 30
+# minutes. Predicates sit on projected variables and limits on list slices, so the fetch is
+# shared with every other history view.
 
 - name: ActionsWatchlist
   description: >-
@@ -70,8 +71,10 @@
     WHERE latest.conclusion = 'failure'
     WITH w, branch, workflow, latest, latest.created_at AS failedAt
     ORDER BY failedAt DESC
-    LIMIT $limit
-    RETURN w.full_name AS repo, branch, workflow, latest.display_title AS title,
-           coalesce(latest.pr_numbers, []) AS prNumbers, latest.actor AS actor,
-           failedAt, toInteger(latest.id) AS runId, latest.html_url AS url
-    ORDER BY failedAt DESC
+    WITH collect({repo: w.full_name, branch: branch, workflow: workflow, title: latest.display_title,
+                  prNumbers: coalesce(latest.pr_numbers, []), actor: latest.actor,
+                  failedAt: failedAt, runId: toInteger(latest.id), url: latest.html_url}) AS rows
+    UNWIND rows[0..$limit] AS row
+    RETURN row.repo AS repo, row.branch AS branch, row.workflow AS workflow, row.title AS title,
+           row.prNumbers AS prNumbers, row.actor AS actor, row.failedAt AS failedAt,
+           row.runId AS runId, row.url AS url

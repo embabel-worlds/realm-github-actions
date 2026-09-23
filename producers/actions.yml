@@ -56,7 +56,7 @@
     owner: repository.owner.login
     repo: repository.name
   cost: { bucket: github-core, rate: 5000/hour }
-  cache: { kind: ttl, seconds: 300, negativeTtlSeconds: 300 }
+  cache: { kind: ttl, seconds: 600, negativeTtlSeconds: 600 }
 
 # No pushdown: the workflows endpoint takes no filter, so a filtered question is answered by
 # the graph over the whole (small) collection.
@@ -78,7 +78,7 @@
     state: state
     html_url: html_url
   cost: { bucket: github-core, rate: 5000/hour }
-  cache: { kind: ttl, seconds: 3600, negativeTtlSeconds: 600 }
+  cache: { kind: ttl, seconds: 21600, negativeTtlSeconds: 3600 }
 
 # Jobs of ONE run, every attempt (filter=all), so a retry shows as the same job name twice
 # with two conclusions. The endpoint wants owner, repo AND run_id and a job record carries
@@ -116,9 +116,9 @@
     step_names: "steps[*].name"
     step_conclusions: "steps[*].conclusion"
   cost: { bucket: github-core, rate: 5000/hour }
-  # The jobs of a completed run never change; an hour is the honest window for the rare run
-  # still in progress when it was opened. The envelope reports when each run's jobs were read.
-  cache: { kind: ttl, seconds: 3600, negativeTtlSeconds: 300 }
+  # The jobs of a completed run never change; six hours is the window for the rare run still in
+  # progress when it was opened. The envelope reports when each run's jobs were read.
+  cache: { kind: ttl, seconds: 21600, negativeTtlSeconds: 600 }
 
 # Annotations of ONE job. A job id IS its check-run id. The CheckAnnotation join composes the
 # job's runKey (itself owner+repo+run_id) with the job id, so the composite splits into four
@@ -144,10 +144,11 @@
   # Annotations of a finished check run never change.
   cache: { kind: ttl, seconds: 86400, negativeTtlSeconds: 3600 }
 
-# THE HISTORY DOOR. Completed runs never change, so the last 31 days are read as CALENDAR
-# PERIODS: one call per day per repository (GitHub's `created` takes an exact date), and a
-# closed day is cached for the life of the process — only today refreshes on the TTL. A cold
-# read costs 31 small calls in parallel; every later read of any window costs at most one.
+# THE HISTORY DOOR. Completed runs never change, so history is read as CALENDAR PERIODS: the
+# current month and the previous one (GitHub's `created` takes `YYYY-MM`), which always covers
+# at least the last 31 days. A closed month is cached for 400 days; only the current month
+# refreshes, every 30 minutes. A cold read of a repository is one page per hundred runs in the
+# two months (embabel/embabel-agent: about 13 calls); every later read of any window is 0.
 # Every windowed analytic view (summary, trend, slowest, failures, flakiness, themes, briefing)
 # reads this door; the LIVE door above answers "right now" (recent runs, broken mains, PRs, a
 # run's jobs). Known edge, stated in the README: a run still in progress when its day closed,
@@ -162,8 +163,8 @@
   batchSafe: false
   args:
     per_page: 100
-  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 5 }
-  periods: { param: created, unit: day, count: 31, lag: 0, stampAs: day }
+  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 15 }   # a month of up to 1,500 runs; more is reported PARTIAL by month
+  periods: { param: created, unit: month, count: 2, lag: 0, stampAs: month }
   project:
     id: id
     name: name
@@ -186,4 +187,4 @@
     owner: repository.owner.login
     repo: repository.name
   cost: { bucket: github-core, rate: 5000/hour }
-  cache: { kind: ttl, seconds: 300, negativeTtlSeconds: 300 }
+  cache: { kind: ttl, seconds: 1800, negativeTtlSeconds: 1800 }

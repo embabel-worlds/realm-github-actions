@@ -12,11 +12,17 @@
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
     runId: { type: int, default: 0, description: "The numeric run id (from a run's URL or another view). The run must be within the last 31 days (the history door's depth)." }
+  # Rank the wanted run first and take ONE: a LIMIT directly before the hop shares the cached
+  # history AND bounds the hop to one anchor, where a predicate on run.id (even wrapped) would
+  # give this lookup its own cache key and re-read the repository for every run id. The guard
+  # that the one run IS the wanted one sits after the hop, on the projected rank, so an unknown
+  # id returns no rows rather than another run's jobs.
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
-    WHERE toInteger(run.id) = $runId
+    WITH run, CASE WHEN toInteger(run.id) = $runId THEN 0 ELSE 1 END AS pick
+    ORDER BY pick LIMIT 1
     MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+    WITH j, pick WHERE pick = 0
     WITH j, CASE WHEN j.status = 'completed' THEN duration.inSeconds(datetime(j.started_at), datetime(j.completed_at)).seconds ELSE null END AS jobSeconds
     RETURN toInteger(j.id) AS jobId, j.name AS job, toInteger(j.run_attempt) AS attempt,
            j.status AS status, j.conclusion AS conclusion,

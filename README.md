@@ -14,7 +14,7 @@ retry, which mains are red across every repository you follow, and the paragraph
 (GitHubRepository {full_name})          pinned by 'owner/repo'; the same label realm-github anchors issues on
    -[:HAS_WORKFLOW]->     (Workflow)
    -[:HAS_WORKFLOW_RUN]-> (WorkflowRun) LIVE — newest first, a literal `since` pushed to GitHub's created filter
-   -[:HAS_RUN_HISTORY]->  (WorkflowRun) HISTORY — 31 calendar days, one call per day, closed days cached
+   -[:HAS_RUN_HISTORY]->  (WorkflowRun) HISTORY — this month and last as calendar periods, closed month cached 400 days
          -[:HAS_JOB]->            (WorkflowJob)        one call per run, all attempts
                -[:HAS_ANNOTATION]->  (CheckAnnotation)  one call per job
 ```
@@ -69,24 +69,32 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 ## Caching — because completed runs never change
 
 Two doors to the same runs. Every windowed view, the fleet, and a run's jobs read
-`HAS_RUN_HISTORY`: the last 31 days as calendar periods, one small GitHub call per day per
-repository, and a **closed day is cached for the life of the process**. The first read of a
-repository costs about 31 calls in parallel (ten to twenty seconds, with progress shown);
-every later read of any window costs at most one call, for today's slice after five minutes.
-Measured on this appliance after the first read: every history view 0 GitHub calls and about
-150 ms, a 30-day count included; the CI Health app's whole set of calls, run one after
-another, 18 s including two model calls, and the page's own load a couple of seconds.
+`HAS_RUN_HISTORY`: this month and last as calendar periods (always at least the last 31 days),
+one GitHub page per hundred runs, a **closed month cached for 400 days** and the current month
+for 30 minutes. The first read of a repository is about a dozen calls (five to ten seconds,
+with progress shown); every later read of any window is zero calls until the current month's
+slice expires. Measured on this appliance after the first read: every history view, the fleet
+and a run's jobs 0 GitHub calls and 150 to 600 ms, a 30-day count included.
 
-Getting there taught three engine rules, all in the views' comments: a literal compared
-against a fetched node's property is part of the fetch's cache key even after a `WITH`, and so
-is a `LIMIT` on the final `RETURN` — so the views filter on projected variables and put their
-`LIMIT` on a `WITH` that carries the order key. Only `ActionsRecentRuns` reads the live door,
-`HAS_WORKFLOW_RUN`, with a literal `since` pushed to GitHub's `created` filter.
+Getting there taught four engine rules, all in the views' comments: a literal compared against
+a fetched node's property is part of the fetch's cache key even after a `WITH`; so is the
+`LIMIT` of a terminal query; a predicate on a projected variable is neither, but does not
+bound the anchors of a following hop; and a `LIMIT` on a `WITH` directly before a hop both
+shares the read and bounds the hop. So the views filter on projected variables, limit terminal
+results by list slice, and keep a `WITH … LIMIT` only before a hop. Only `ActionsRecentRuns`
+reads the live door, `HAS_WORKFLOW_RUN`, with a literal `since` pushed to GitHub's `created`
+filter.
 
-The jobs of a run are cached an hour and a job's annotations a day; both are immutable once
+The cache is kept **per signed-in user**, and two panels missing it at the same moment each
+sweep GitHub (the engine does not yet share an in-flight fetch; embabel/me#1543). So the app
+warms each followed repository with one small view, one at a time, before any panel fans out:
+the first read of a repository in a session is five to ten seconds and says so on the page;
+after that every panel is sub-second.
+
+The jobs of a run are cached six hours and a job's annotations a day; both are immutable once
 the run is complete. The honest edge of the history door: a run still in progress when its
-day closed, or re-run days later, keeps in history the state it had when that day was last
-read, until the appliance restarts.
+month closed, or re-run in a later month, keeps in history the state it had when that month
+was last read.
 
 ## Verify before anyone asks it anything
 

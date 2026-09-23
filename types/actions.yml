@@ -61,7 +61,7 @@
       recordKeyField: repository
       producer: runHistoryByRepo
       maxFanoutTotal: 40000
-      description: "The last 31 days of runs as calendar history — one call per day, closed days cached for the life of the process. The door for any question over a window: 'how are our builds doing', 'slowest builds this week', 'builds per day', 'flaky jobs this month'. Use HAS_WORKFLOW_RUN instead for 'right now' (newest runs, is main red)."
+      description: "At least the last 31 days of runs as calendar history — this month and last, a closed month cached for 400 days, the current month refreshed every 30 minutes. The door for any question over a window: 'how are our builds doing', 'slowest builds this week', 'builds per day', 'flaky jobs this month'. Use HAS_WORKFLOW_RUN instead for 'right now' (newest runs, is main red)."
     # The SECOND door: the same runs off a followed repository (a stored ActionsWatch node), so
     # one query can sweep every repository on the watchlist — 'which mains are broken'.
     - anchorLabel: ActionsWatch
@@ -79,7 +79,7 @@
       producer: runHistoryByRepo
       maxAnchors: 50
       maxFanoutTotal: 200000
-      description: "The last 31 days of runs of every followed repository at once, from the cached history — the door for 'which mains are broken', 'which PRs are red', 'how is CI across our repos'."
+      description: "At least the last 31 days of runs of every followed repository at once, from the cached history — the door for 'which mains are broken', 'which PRs are red', 'how is CI across our repos'."
   examples:
     - q: "how many workflow runs did embabel/embabel-agent have in the last 7 days"
       cypher: |
@@ -127,7 +127,7 @@
     updated_at: "Last change; for a completed run, when it finished (ISO 8601)."
     html_url: "Link to the run on GitHub."
     actor: "Login of the user whose action triggered the run."
-    day: "Calendar day (UTC, YYYY-MM-DD) this run was fetched under when reached via HAS_RUN_HISTORY; absent via HAS_WORKFLOW_RUN."
+    month: "Calendar month (UTC, YYYY-MM) this run was fetched under when reached via HAS_RUN_HISTORY; absent via HAS_WORKFLOW_RUN."
     pr_numbers: "Pull request numbers GitHub linked to the run (often empty for runs from forks; display_title then carries the PR title and head_branch its branch)."
     owner: "Repository owner login — with repo and id, the key the run's jobs are fetched by."
     repo: "Repository name (without the owner)."

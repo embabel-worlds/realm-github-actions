@@ -5,3 +5,4 @@ tests/fixtures/*.tmp
 test-results/
 playwright-report/
 tests/fixtures/_page.html
+.scratch/

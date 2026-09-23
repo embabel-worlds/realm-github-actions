@@ -190,12 +190,13 @@
 (GitHubRepository {full_name})            the door — pinned by 'owner/repo'; the same label realm-github anchors issues on
    -[:HAS_WORKFLOW]->      (Workflow)       GET /repos/{o}/{r}/actions/workflows                        cached 1 h
    -[:HAS_WORKFLOW_RUN]->  (WorkflowRun)    LIVE: GET .../actions/runs?created=>=since, newest first    cached 5 min
-   -[:HAS_RUN_HISTORY]->   (WorkflowRun)    HISTORY: one GET per calendar day, 31 days                  closed days cached for the life of the process
+   -[:HAS_RUN_HISTORY]->   (WorkflowRun)    HISTORY: one GET per 100 runs per calendar month, this month and last   closed month cached 400 days, current month 30 min
          -[:HAS_JOB]->            (WorkflowJob)     GET .../runs/{id}/jobs?filter=all, one call per run   cached 5 min
                -[:HAS_ANNOTATION]->  (CheckAnnotation) GET .../check-runs/{job}/annotations, one call per job   cached 1 h</pre>
   <ul>
-    <li><strong>Two doors to the same runs.</strong> Completed runs never change, so every panel here — the fleet, overview, runs, failures, flaky, reading, and a run's jobs — reads <em>history</em>: the last 31 days as calendar periods, one GitHub call per day, and a closed day is cached for the life of the process. The first read of a repository costs about 31 small calls (ten to twenty seconds); every later read of any window costs at most one call, for today's slice after five minutes. Only <code>ActionsRecentRuns</code> reads the <em>live</em> door, with the window pushed down to GitHub's <code>created</code> filter. The views keep every filter and limit on projected variables and on a <code>WITH</code>, not on the fetch, which is what lets all of them share one cached read per repository.</li>
-    <li><strong>Freshness.</strong> Today's slice is re-read after five minutes; a closed day never, until the appliance restarts. A run's jobs are re-read after an hour, annotations after a day, workflows after an hour. A figure that disagrees with GitHub inside those windows is the cache, not a bug; the engine reports when each producer was actually read. Known edge: a run still in progress when its day closed, or re-run days later, keeps in history the state it had when that day was last read.</li>
+    <li><strong>Two doors to the same runs.</strong> Completed runs never change, so every panel here — the fleet, overview, runs, failures, flaky, reading, and a run's jobs — reads <em>history</em>: this month and last as calendar periods (at least the last 31 days), one GitHub page per hundred runs, a closed month cached for 400 days and the current month for 30 minutes. The first read of a repository costs about a dozen calls (five to ten seconds); every later read of any window costs nothing until the current month's slice expires. Only <code>ActionsRecentRuns</code> reads the <em>live</em> door, with the window pushed down to GitHub's <code>created</code> filter. The views keep every filter and limit on projected variables and on a <code>WITH</code>, not on the fetch, which is what lets all of them share one cached read per repository.</li>
+    <li><strong>Per user, and warmed once.</strong> The world keeps that cache per signed-in user, and two panels missing it at the same moment would each sweep GitHub. So this page reads one small view per followed repository first, one at a time, and opens the panels only when the repository is warm. The first read of a repository in a session takes five to ten seconds and says so; after that, panels answer in well under a second.</li>
+    <li><strong>Freshness.</strong> The current month's slice is re-read after 30 minutes; a closed month after 400 days. A run's jobs are re-read after six hours, annotations after a day, workflows after six hours. A figure that disagrees with GitHub inside those windows is the cache, not a bug; the engine reports when each producer was actually read. Known edge: a run still in progress when its month closed, or re-run in a later month, keeps in history the state it had when that month was last read.</li>
     <li><strong>The fleet.</strong> "Broken mains" is, per followed repository and workflow, the latest completed run on the watched branch; "broken PRs" is, per pull-request branch, the latest completed run. Both sweep every followed repository in one query through the watchlist's door.</li>
     <li><strong>Run time</strong> is <code>updated_at − run_started_at</code> on a completed run; <strong>queue time</strong> is <code>run_started_at − created_at</code>. Values arrive from GitHub as strings; the views coerce.</li>
     <li><strong>The daily watch</strong> (<code>ciWatch</code> in the realm's handlers) runs at 08:00 on weekdays once an operator adopts it, over the repositories seeded as <code>ActionsWatch</code>. It is not what this page reads.</li>
@@ -244,6 +245,20 @@
   function iso(ms) { return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z'); }
   function ctx() { var days = Number($('days').value) || 7; return { repo: currentRepo, days: days, since: iso(Date.now() - days * 86400000) }; }
   var cache = {};
+  /* The world caches a repository's 31 days of history per user, but concurrent misses do not
+     share a fetch: six panels asking at once would each sweep GitHub. So the page reads ONE cheap
+     view per followed repository first, one at a time, and fans out only when that is warm. */
+  var warmed = {}, warming = null;
+  function warm(repos) {
+    var todo = repos.filter(function (r, i) { return r && !warmed[r] && repos.indexOf(r) === i; });
+    if (!todo.length) return Promise.resolve();
+    if (warming) return warming.then(function () { return warm(repos); });
+    var c = ctx(), v = $('verdict');
+    v.className = 'verdict'; v.innerHTML = '<div class="big">Reading ' + esc(todo[0]) + '…</div><div class="why">First read of a repository in this session: 31 days of runs, once, then everything answers from cache.' + (todo.length > 1 ? ' ' + (todo.length - 1) + ' more to go.' : '') + '</div>';
+    warming = embabel.views.invoke('ActionsRunCount', { repo: todo[0], since: c.since }, { state: stateEl, timeoutMs: 300000 })
+      .then(function () { warmed[todo[0]] = true; warming = null; return warm(repos); }, function (e) { warming = null; throw e; });
+    return warming;
+  }
   function load(name, params) {
     var key = name + JSON.stringify(params);
     if (cache[key]) return cache[key];
@@ -316,7 +331,8 @@
     var el = $('p-fleet'); var since14 = iso(Date.now() - 14 * 86400000);
     if (force) Object.keys(cache).forEach(function (k) { if (/^ActionsBroken/.test(k)) delete cache[k]; });
     el.innerHTML = '<div class="muted">Reading the latest run of every workflow on every followed repository…</div>';
-    Promise.all([loadWatchlist(false), load('ActionsBrokenMains', { since: since14, all: true }), load('ActionsBrokenPullRequests', { since: c.since, limit: 100 })]).then(function (r) {
+    loadWatchlist(false).then(function (ws) { return warm(ws.map(function (w) { return w.repo; })); })
+      .then(function () { return Promise.all([loadWatchlist(false), load('ActionsBrokenMains', { since: since14, all: true }), load('ActionsBrokenPullRequests', { since: c.since, limit: 100 })]); }).then(function (r) {
       var mains = r[1].rows, prs = r[2].rows;
       var byRepo = {}; watchlist.forEach(function (w) { byRepo[w.repo] = { repo: w.repo, branch: w.branch, red: [], green: 0, prs: 0 }; });
       mains.forEach(function (m) { var b = byRepo[m.repo] || (byRepo[m.repo] = { repo: m.repo, branch: m.branch, red: [], green: 0, prs: 0 }); if (m.latestConclusion === 'success') b.green++; else b.red.push(m); });
@@ -349,7 +365,7 @@
   function hydrate(name) {
     var c = ctx(); if (!/^[\w.-]+\/[\w.-]+$/.test(c.repo)) return;
     var k = name + '|' + c.repo + '|' + c.days; if (hydrated[k]) return; hydrated[k] = true;
-    if (name === 'runs') runs(c); else if (name === 'failures') failures(c); else if (name === 'flaky') flaky(c);
+    warm([c.repo]).then(function () { if (name === 'runs') runs(c); else if (name === 'failures') failures(c); else if (name === 'flaky') flaky(c); });
   }
   document.querySelectorAll('nav [role=tab]').forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
   $('howLink').addEventListener('click', function () { $('how').classList.add('on'); howViews(); });
@@ -550,9 +566,11 @@
     chips();
     $('verdict').className = 'verdict'; $('verdict').innerHTML = '<div class="big">Reading ' + esc(c.repo) + '…</div><div class="why">Reading the runs since ' + esc(c.since) + '.</div>';
     hydrated = {};
-    headline(c); overview(c);
     ['runs', 'failures', 'flaky'].forEach(function (p) { $('p-' + p).innerHTML = '<div class="muted">Opens when you open the tab.</div>'; });
-    var open = document.querySelector('nav [role=tab][aria-selected="true"]'); if (open) hydrate(open.dataset.tab);
+    warm([c.repo]).then(function () {
+      headline(c); overview(c);
+      var open = document.querySelector('nav [role=tab][aria-selected="true"]'); if (open) hydrate(open.dataset.tab);
+    }).catch(function (e) { failure($('verdict'), e); });
     if (selected) pick(selected);
   }
   $('go').addEventListener('click', readAll);

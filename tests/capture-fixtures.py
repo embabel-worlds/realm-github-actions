@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Capture the browser harness's fixtures from a LIVE appliance — never hand-write them.
 
-    EMBABEL_AUTH=user:pass APPLIANCE=http://127.0.0.1:11043 python3 tests/capture-fixtures.py [owner/repo]
+    EMBABEL_AUTH=user:pass APPLIANCE=http://127.0.0.1:11043 python3 tests/capture-fixtures.py [owner/repo [owner/repo ...]]
+
+The first repository is the one the page opens on; the watchlist fixture keeps ONLY the
+repositories named here (default: the two public embabel repositories), so a private repository
+somebody follows on the capturing appliance never lands in a public fixture. Everything else is
+the live envelope, untouched.
 
 Saves under tests/fixtures/: the served app (app.html), the world's contracts, and every
 view envelope the app's scripts request, keyed exactly as the runtime keys them
@@ -13,7 +18,8 @@ re-capture is the harness working.
 """
 import base64, datetime, json, os, sys, urllib.request
 
-REPO = sys.argv[1] if len(sys.argv) > 1 else 'embabel/embabel-agent'
+REPOS = sys.argv[1:] or ['embabel/embabel-agent', 'embabel/embabel-agent-examples']
+REPO = REPOS[0]
 BASE = os.environ.get('APPLIANCE', 'http://127.0.0.1:11043').rstrip('/')
 HERE = os.path.dirname(os.path.abspath(__file__)); FX = os.path.join(HERE, 'fixtures')
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
@@ -59,6 +65,10 @@ CALLS = [
 envelopes = {}
 for name, args in CALLS:
     env = json.loads(req(f'/api/v1/views/{name}/invoke', {'args': args}))
+    if name == 'ActionsWatchlist' and isinstance(env.get('data'), list):
+        env['data'] = [w for w in env['data'] if w.get('repo') in REPOS]
+    if name in ('ActionsBrokenMains', 'ActionsBrokenPullRequests') and isinstance(env.get('data'), list):
+        env['data'] = [r for r in env['data'] if r.get('repo') in REPOS]
     envelopes[key(name, args)] = env
     rows = env.get('data') if isinstance(env.get('data'), list) else (env.get('data') or {}).get('rows') or env.get('rows') or []
     print(f'captured {name} {json.dumps(args)} -> {len(rows)} rows, {env.get("status")}/{env.get("outcome")}')
@@ -69,6 +79,12 @@ if srows:
     args = {'repo': REPO, 'runId': srows[0]['runId']}
     envelopes[key('ActionsRunJobs', args)] = json.loads(req('/api/v1/views/ActionsRunJobs/invoke', {'args': args}))
     print('captured ActionsRunJobs for run', srows[0]['runId'])
+# The warm-up: ActionsRunCount for EVERY followed repository, as the page reads it before fanning out.
+for repo in REPOS:
+    args = {'repo': repo, 'since': SINCE}
+    if key('ActionsRunCount', args) not in envelopes:
+        envelopes[key('ActionsRunCount', args)] = json.loads(req('/api/v1/views/ActionsRunCount/invoke', {'args': args}))
+        print('captured warm-up for', repo)
 json.dump({'capturedAt': NOW_MS, 'repo': REPO, 'since': SINCE, 'envelopes': envelopes}, open(os.path.join(FX, 'envelopes.json'), 'w'), indent=1)
 
 ask = json.loads(req('/api/v1/admin/kg/ask', {'question': f'which workflow in {REPO} fails most often'}))

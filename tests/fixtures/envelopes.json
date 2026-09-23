@@ -1,10 +1,10 @@
 {
- "capturedAt": 1790186286000,
+ "capturedAt": 1790188719000,
  "repo": "embabel/embabel-agent",
- "since": "2026-09-16T17:58:06Z",
+ "since": "2026-09-16T18:38:39Z",
  "envelopes": {
   "view:ActionsWatchlist:{}": {
-   "executionId": "exec_ae330d4c-a799-4bd4-8f7b-21cc59b370ce",
+   "executionId": "exec_80b6b7d4-c296-4c74-b42d-a932386fe22d",
    "operationId": "ActionsWatchlist",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -27,13 +27,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 3,
+    "durationMs": 1,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsBrokenMains:{\"all\":true,\"since\":\"2026-09-09T17:58:06Z\"}": {
-   "executionId": "exec_991c647d-77ab-49e9-a84b-f9fbddb4c489",
+  "view:ActionsBrokenMains:{\"all\":true,\"since\":\"2026-09-09T18:38:39Z\"}": {
+   "executionId": "exec_d0cdcedc-991f-4a3f-baf0-d0135eb3eb9d",
    "operationId": "ActionsBrokenMains",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -140,29 +140,29 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 100,
+    "durationMs": 332,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsBrokenPullRequests:{\"limit\":100,\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_d8ca1bc6-5c9b-481c-af46-f552cfe97dac",
+  "view:ActionsBrokenPullRequests:{\"limit\":100,\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_f601a171-3597-465e-ae6e-03199cca0dc7",
    "operationId": "ActionsBrokenPullRequests",
    "contractVersion": "1",
    "status": "SUCCEEDED",
-   "outcome": "EMPTY",
+   "outcome": "OK",
    "outputType": "rows",
    "data": [],
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 117,
+    "durationMs": 365,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsRunCount:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_0353fe38-6368-409d-a50a-1cb9237637f3",
+  "view:ActionsRunCount:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_b397d3f2-8de0-4e89-9355-a0f1fa2db017",
    "operationId": "ActionsRunCount",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -170,24 +170,24 @@
    "outputType": "rows",
    "data": [
     {
-     "runs": 136,
-     "completed": 136,
-     "succeeded": 126,
+     "runs": 137,
+     "completed": 137,
+     "succeeded": 127,
      "failed": 10,
      "cancelled": 0,
-     "successRatePct": 92.6
+     "successRatePct": 92.7
     }
    ],
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 80,
+    "durationMs": 165,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsSlowestRuns:{\"limit\":1,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_790e86d5-d154-4a60-87cb-c17fc47bd3b3",
+  "view:ActionsSlowestRuns:{\"limit\":1,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_641fd43c-54d8-466c-9bb1-8b953ce56128",
    "operationId": "ActionsSlowestRuns",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -210,13 +210,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 82,
+    "durationMs": 143,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsWorkflowSummary:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_dc70ac2f-59c4-425a-a177-74dbf9ed8420",
+  "view:ActionsWorkflowSummary:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_4cfb7327-8f5e-4ffd-bc94-abc7d893e120",
    "operationId": "ActionsWorkflowSummary",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -236,12 +236,12 @@
     },
     {
      "workflow": "Build",
-     "runs": 84,
-     "succeeded": 77,
+     "runs": 85,
+     "succeeded": 78,
      "failed": 7,
      "cancelled": 0,
-     "failureRatePct": 8.3,
-     "avgRunMinutes": 22.5,
+     "failureRatePct": 8.2,
+     "avgRunMinutes": 22.4,
      "longestRunMinutes": 31.1,
      "avgQueueSeconds": 0.0
     },
@@ -282,13 +282,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 117,
+    "durationMs": 145,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsDailyRuns:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_f3174eb1-8da3-4b48-8906-3a9dcdb43469",
+  "view:ActionsDailyRuns:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_c75b2306-1002-48fe-9bd8-2c93f88cd21d",
    "operationId": "ActionsDailyRuns",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -332,22 +332,22 @@
     },
     {
      "day": "2026-09-23",
-     "runs": 28,
+     "runs": 29,
      "failed": 2,
-     "succeeded": 26,
-     "avgRunMinutes": 16.3
+     "succeeded": 27,
+     "avgRunMinutes": 16.2
     }
    ],
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 100,
+    "durationMs": 132,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsSlowestRuns:{\"limit\":15,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_6080df6d-2f1e-4311-a4c9-e8b280b4ccfd",
+  "view:ActionsSlowestRuns:{\"limit\":15,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_79e553f7-9226-483b-a56c-e83c57ca5514",
    "operationId": "ActionsSlowestRuns",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -538,13 +538,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 92,
+    "durationMs": 139,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsFailedRuns:{\"limit\":50,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_a19d8397-c2bf-46b1-87dd-76712ee968b9",
+  "view:ActionsFailedRuns:{\"limit\":50,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_9e711f99-0edf-4727-af26-55ef1cb54a84",
    "operationId": "ActionsFailedRuns",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -675,13 +675,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 990,
-    "externalCalls": 1,
-    "cacheHit": null
+    "durationMs": 139,
+    "externalCalls": 0,
+    "cacheHit": true
    }
   },
-  "view:ActionsFailingSteps:{\"repo\":\"embabel/embabel-agent\",\"runs\":10,\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_a9092a36-2a9b-4922-84cd-8ba2747196bb",
+  "view:ActionsFailingSteps:{\"repo\":\"embabel/embabel-agent\",\"runs\":10,\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_f21760f8-2b23-4f5a-ba3d-6bae92fbacd3",
    "operationId": "ActionsFailingSteps",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -737,13 +737,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 107,
+    "durationMs": 154,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsSlowestJobs:{\"limit\":10,\"repo\":\"embabel/embabel-agent\",\"runs\":5,\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_51342cd4-b74e-476f-af52-92a9d1f1a8c8",
+  "view:ActionsSlowestJobs:{\"limit\":10,\"repo\":\"embabel/embabel-agent\",\"runs\":5,\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_c1006920-8bd5-4440-90b1-cf694e5b7046",
    "operationId": "ActionsSlowestJobs",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -874,13 +874,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 103,
+    "durationMs": 162,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsPassedOnRetry:{\"limit\":30,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-08-24T17:58:06Z\"}": {
-   "executionId": "exec_6849554c-e222-42ab-9d9b-2890c149fbaa",
+  "view:ActionsPassedOnRetry:{\"limit\":30,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-08-24T18:38:39Z\"}": {
+   "executionId": "exec_684d5580-895e-4bd2-96e1-7f1d38f0359f",
    "operationId": "ActionsPassedOnRetry",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -941,13 +941,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 864,
-    "externalCalls": 1,
-    "cacheHit": null
+    "durationMs": 140,
+    "externalCalls": 0,
+    "cacheHit": true
    }
   },
-  "view:ActionsFlakyJobs:{\"repo\":\"embabel/embabel-agent\",\"runs\":10,\"since\":\"2026-08-24T17:58:06Z\"}": {
-   "executionId": "exec_abc0fc85-7ef6-4720-9943-38902bca966a",
+  "view:ActionsFlakyJobs:{\"repo\":\"embabel/embabel-agent\",\"runs\":10,\"since\":\"2026-08-24T18:38:39Z\"}": {
+   "executionId": "exec_4033f946-f17d-474d-bf45-b836726646a7",
    "operationId": "ActionsFlakyJobs",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -984,13 +984,13 @@
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 153,
+    "durationMs": 158,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsFailureThemes:{\"count\":5,\"repo\":\"embabel/embabel-agent\",\"runs\":10,\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_b9a2dc04-1200-46e0-b1af-faa47ce98667",
+  "view:ActionsFailureThemes:{\"count\":5,\"repo\":\"embabel/embabel-agent\",\"runs\":10,\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_a2a0c5bb-92ea-4988-b4c4-e88a48d25103",
    "operationId": "ActionsFailureThemes",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -999,24 +999,23 @@
    "data": [
     {
      "themes": [
-      "Dependabot update failures due to errors during dependency update process",
-      "Build failures during \"Build and test\" step across multiple workflows and branches",
-      "Repeated \"Linux-specific setup\" step failures during build jobs",
-      "Failures in code quality analysis step (SonarCloud) during build processes",
-      "Failures in dependency management step (\"Run Dependabot\") across different workflows"
+      "Dependabot update failures due to errors encountered during the update process",
+      "Build failures in specific steps (build/test) across multiple workflows",
+      "Repeated build/test step failures on Ubuntu-latest environment",
+      "Failures during environment setup or specific build steps across multiple workflows"
      ]
     }
    ],
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 1426,
+    "durationMs": 2484,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsBriefing:{\"repo\":\"embabel/embabel-agent\",\"runs\":10,\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_3064b82f-040b-4a7a-93fe-302a38e4be60",
+  "view:ActionsBriefing:{\"repo\":\"embabel/embabel-agent\",\"runs\":10,\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_3e073481-8769-4f9e-b3b5-a86078694c35",
    "operationId": "ActionsBriefing",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -1024,19 +1023,19 @@
    "outputType": "rows",
    "data": [
     {
-     "briefing": "The CI system shows partial health, with 84 runs of \"Build\" and 7 failures (8.3%), but \"dynamic: dependency-graph,\" \"Deploy Snapshots,\" and \"Publish Docs\" are failure-free. However, \"dynamic: dependabot\" has a 100% failure rate across its 3 runs. The \"Build\" workflow has the worst failure rate, especially at the \"build (ubuntu-latest)\" job\u2019s \"Build and test\" step, which failed 4 times. \"Build\" also takes the longest per run at 22.5 minutes. The most common failure appears during the \"Build and test\" step in \"Build,\" but \"dynamic: dependabot\" failures at \"Run Dependabot\" are also significant. The first thing to check is the recurring \"Build and test\" step in \"Build,\" as resolving its issues could substantially improve overall reliability."
+     "briefing": "The CI system shows some instability, mainly driven by the \"Build\" workflow with an 8.2% failure rate across 85 runs, losing 7 runs, and the \"dynamic: dependabot\" workflow with a 100% failure rate in its 3 runs. The \"Build\" workflow's failure is most often at the \"Build and test\" step, failing 4 times, and additionally at \"Linux-specific setup and SonarCloud analysis\" twice, indicating a recurring issue during build and environment setup. The \"dynamic: dependabot\" workflow fails at \"Run Dependabot\" every time. The \"Build\" workflow takes the longest, averaging 22.4 minutes per run. The immediate focus should be on \"build (ubuntu-latest)\", as it has the highest failure count and critical failures during core steps. Addressing these failures first will likely improve overall stability."
     }
    ],
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 1855,
+    "durationMs": 2781,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
-  "view:ActionsRunCount:{\"days\":7,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:58:06Z\"}": {
-   "executionId": "exec_d2178efe-b480-4c63-b5fe-ec8684d35401",
+  "view:ActionsRunCount:{\"days\":7,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_3e4eed64-459d-4f45-8184-30a48da0a068",
    "operationId": "ActionsRunCount",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -1044,24 +1043,24 @@
    "outputType": "rows",
    "data": [
     {
-     "runs": 136,
-     "completed": 136,
-     "succeeded": 126,
+     "runs": 137,
+     "completed": 137,
+     "succeeded": 127,
      "failed": 10,
      "cancelled": 0,
-     "successRatePct": 92.6
+     "successRatePct": 92.7
     }
    ],
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 67,
+    "durationMs": 124,
     "externalCalls": 0,
     "cacheHit": true
    }
   },
   "view:ActionsRunJobs:{\"repo\":\"embabel/embabel-agent\",\"runId\":35879882435}": {
-   "executionId": "exec_1f6e996c-bf3c-4504-803b-dc56de962e09",
+   "executionId": "exec_ebae4a75-ed27-47da-959b-a5d601d901be",
    "operationId": "ActionsRunJobs",
    "contractVersion": "1",
    "status": "SUCCEEDED",
@@ -1111,34 +1110,6 @@
      "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107245292512"
     },
     {
-     "jobId": 107258346755,
-     "job": "notify",
-     "attempt": 1,
-     "status": "completed",
-     "conclusion": "skipped",
-     "runMinutes": 0.0,
-     "jobSeconds": 0,
-     "failedSteps": [],
-     "steps": 0,
-     "runner": null,
-     "startedAt": "2026-09-23T15:43:57Z",
-     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107258346755"
-    },
-    {
-     "jobId": 107258346735,
-     "job": "notify-recovery",
-     "attempt": 1,
-     "status": "completed",
-     "conclusion": "skipped",
-     "runMinutes": 0.0,
-     "jobSeconds": 0,
-     "failedSteps": [],
-     "steps": 0,
-     "runner": null,
-     "startedAt": "2026-09-23T15:43:57Z",
-     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107258346735"
-    },
-    {
      "jobId": 107258346668,
      "job": "trigger-docs",
      "attempt": 1,
@@ -1153,6 +1124,20 @@
      "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107258346668"
     },
     {
+     "jobId": 107258346755,
+     "job": "notify",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "skipped",
+     "runMinutes": 0.0,
+     "jobSeconds": 0,
+     "failedSteps": [],
+     "steps": 0,
+     "runner": null,
+     "startedAt": "2026-09-23T15:43:57Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107258346755"
+    },
+    {
      "jobId": 107245294190,
      "job": "build-fork",
      "attempt": 1,
@@ -1165,14 +1150,53 @@
      "runner": null,
      "startedAt": "2026-09-23T15:12:52Z",
      "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107245294190"
+    },
+    {
+     "jobId": 107258346735,
+     "job": "notify-recovery",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "skipped",
+     "runMinutes": 0.0,
+     "jobSeconds": 0,
+     "failedSteps": [],
+     "steps": 0,
+     "runner": null,
+     "startedAt": "2026-09-23T15:43:57Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107258346735"
     }
    ],
    "warnings": [],
    "error": null,
    "metrics": {
-    "durationMs": 937,
+    "durationMs": 607,
     "externalCalls": 1,
     "cacheHit": null
+   }
+  },
+  "view:ActionsRunCount:{\"repo\":\"embabel/embabel-agent-examples\",\"since\":\"2026-09-16T18:38:39Z\"}": {
+   "executionId": "exec_8ad5257a-90b7-4e86-ba87-93d8d75cd5e2",
+   "operationId": "ActionsRunCount",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "runs": 14,
+     "completed": 14,
+     "succeeded": 14,
+     "failed": 0,
+     "cancelled": 0,
+     "successRatePct": 100.0
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 50,
+    "externalCalls": 0,
+    "cacheHit": true
    }
   }
  }
