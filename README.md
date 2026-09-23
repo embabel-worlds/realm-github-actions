@@ -9,7 +9,7 @@ retry, which mains are red across every repository you follow, and the paragraph
 
 ```
 (ActionsWatch {full_name, branch})      the watchlist — the one stored type; the app's picker and the fleet views read it
-   -[:HAS_WORKFLOW_RUN]-> (WorkflowRun) the live door, off every followed repository at once
+   -[:HAS_RUN_HISTORY]->  (WorkflowRun) the same cached history, off every followed repository at once
 
 (GitHubRepository {full_name})          pinned by 'owner/repo'; the same label realm-github anchors issues on
    -[:HAS_WORKFLOW]->     (Workflow)
@@ -68,22 +68,25 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 
 ## Caching — because completed runs never change
 
-Two doors to the same runs. Windowed analytics (count, summary, trend, slowest, failures,
-flakiness, themes, briefing) read `HAS_RUN_HISTORY`: the last 31 days as calendar periods, one
-small GitHub call per day per repository, and a **closed day is cached for the life of the
-process**. Every history view keeps its predicates behind a `WITH`, so all of them share one
-cached fetch per repository: the first read of a repository costs about 31 calls in parallel
-(ten to twenty seconds), and every later read of any window costs at most one call, for
-today's slice after five minutes. Measured on this appliance: a 30-day count in 0.14 s with no
-GitHub call.
+Two doors to the same runs. Every windowed view, the fleet, and a run's jobs read
+`HAS_RUN_HISTORY`: the last 31 days as calendar periods, one small GitHub call per day per
+repository, and a **closed day is cached for the life of the process**. The first read of a
+repository costs about 31 calls in parallel (ten to twenty seconds, with progress shown);
+every later read of any window costs at most one call, for today's slice after five minutes.
+Measured on this appliance after the first read: every history view 0 GitHub calls and about
+150 ms, a 30-day count included; the CI Health app's whole set of calls, run one after
+another, 18 s including two model calls, and the page's own load a couple of seconds.
 
-"Right now" views — the newest runs, a run's jobs, the fleet's broken mains and broken PRs —
-read `HAS_WORKFLOW_RUN` live with a literal `since` pushed to GitHub's `created` filter, one
-or two calls per repository, cached five minutes.
+Getting there taught three engine rules, all in the views' comments: a literal compared
+against a fetched node's property is part of the fetch's cache key even after a `WITH`, and so
+is a `LIMIT` on the final `RETURN` — so the views filter on projected variables and put their
+`LIMIT` on a `WITH` that carries the order key. Only `ActionsRecentRuns` reads the live door,
+`HAS_WORKFLOW_RUN`, with a literal `since` pushed to GitHub's `created` filter.
 
-The honest edge of the history door: a run still in progress when its day closed, or re-run
-days later, keeps in history the state it had when that day was last read, until the
-appliance restarts. The live door does not have this edge.
+The jobs of a run are cached an hour and a job's annotations a day; both are immutable once
+the run is complete. The honest edge of the history door: a run still in progress when its
+day closed, or re-run days later, keeps in history the state it had when that day was last
+read, until the appliance restarts.
 
 ## Verify before anyone asks it anything
 
@@ -125,15 +128,15 @@ Green means: every figure on every surface equals what GitHub says for the same 
   producer worth adding.
 - The natural-language path selects a view when one claims the question; otherwise it composes
   its own Cypher over the same rows, and a phrasing like "this week" may mean since Monday. The
-  ladder's last run on 23 September 2026: L0–L2 exact on every figure, 36 checks green, and
-  six red — all in three battery phrasings the generator still composes with a different
+  ladder's last run on 23 September 2026: L0–L2 exact on every figure, 37 checks green, and
+  five red — all in three battery phrasings the generator still composes with a different
   measure than the view ("CI success rate" over all runs rather than completed ones, "took the
   longest" in minutes over a day-aligned window, "fails most often" as a count over 31 days).
   The figures those answers carry are real; they are not the view's. The stable fix is view
   selection, and the descriptions now claim those phrasings; until it holds, the app and the
   hints route those questions to the views.
-- Looking a run up by id without its date walks the last 1,000 runs and once returned nothing
-  on this appliance; every surface here passes the run's `created_at` as `since`.
+- A run's jobs are looked up through the history door, so a run older than 31 days has none
+  here; GitHub's page shows them.
 - `pr_numbers` is usually empty: GitHub links pull requests to a run only in some cases.
   Broken PRs are identified by branch and title.
 

@@ -117,7 +117,7 @@ gotd = {r['day']: [r['runs'], r['failed']] for r in rows}
 check(gotd == L0['days'], 'L2: ActionsDailyRuns per-day (runs, failed) == GitHub', f'{gotd} vs {L0["days"]}')
 if L0['slowestRunId']:
     jobs0 = gh(f'/repos/{REPO}/actions/runs/{L0["slowestRunId"]}/jobs', {'filter': 'all', 'per_page': 100})['jobs']
-    rows, warns = view('ActionsRunJobs', {'repo': REPO, 'runId': L0['slowestRunId'], 'since': L0['slowestCreatedAt']})
+    rows, warns = view('ActionsRunJobs', {'repo': REPO, 'runId': L0['slowestRunId']})
     check(sorted(r['jobId'] for r in rows) == sorted(j['id'] for j in jobs0), 'L2: ActionsRunJobs job ids == GitHub jobs of the slowest run', f'{len(rows)} vs {len(jobs0)}')
     exp_failed = {j['id']: [s['name'] for s in j['steps'] if s['conclusion'] == 'failure'] for j in jobs0}
     check(all(r['failedSteps'] == exp_failed.get(r['jobId']) for r in rows), 'L2: ActionsRunJobs failed steps == GitHub step conclusions')

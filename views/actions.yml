@@ -8,10 +8,15 @@
 # "Right now" views (recent runs, a run's jobs, and the fleet's broken mains and PRs) read
 # HAS_WORKFLOW_RUN live, with a literal `since` pushed down to GitHub's `created` filter.
 #
-# ONE CACHE KEY PER REPOSITORY on the history door: every predicate on a history view sits
-# BEHIND a `WITH run`, so nothing is attached to the fetch and every view and every window
-# shares the same cached days. A predicate in the MATCH's own WHERE becomes part of the fetch
-# key, and each view would then re-read all 31 days for itself.
+# ONE CACHE KEY PER REPOSITORY on the history door. The engine keys a fetch by the anchor AND
+# by every predicate it can attach to the fetched node — a literal compared against a node
+# property (`run.status = 'completed'`, `run.created_at >= '2026-…'`) counts even AFTER a
+# `WITH run`, and so does a LIMIT on the final RETURN. Each distinct set is its own 31-call
+# read. So every history view (a) projects the properties it filters on into variables first
+# (`WITH run, run.created_at AS createdAt, run.status AS status, …`) and filters on THOSE, and
+# (b) puts its LIMIT on a `WITH` that carries the order key (`WITH run, createdAt ORDER BY
+# createdAt DESC LIMIT $n`), never on the RETURN. Then every view and every window shares the
+# one cached read. Measured: 0 calls and ~150 ms per view once a repository has been read.
 #
 # WINDOWS. Three parameters, same on every windowed view:
 #   since  — ISO-8601 lower bound on created_at; overrides `days`. On the live door it is
@@ -43,10 +48,10 @@
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
     WITH count(run) AS runs,
          sum(CASE WHEN run.status = 'completed' THEN 1 ELSE 0 END) AS completed,
          sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed,
@@ -96,11 +101,11 @@
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND run.status = 'completed'
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND status = 'completed'
     WITH CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds, duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds
     WITH workflow, count(run) AS runs,
          sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed,
@@ -129,19 +134,20 @@
     limit: { type: int, default: 10, description: "How many runs." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND run.status = 'completed'
-    WITH run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND status = 'completed'
+    WITH run, createdAt, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
+    ORDER BY runSeconds DESC, createdAt DESC
+    LIMIT $limit
     RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
            run.head_branch AS branch, run.conclusion AS conclusion,
            round(runSeconds / 60.0, 1) AS runMinutes, runSeconds,
            duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds,
-           run.created_at AS createdAt, run.html_url AS url
-    ORDER BY runSeconds DESC, run.created_at DESC
-    LIMIT $limit
+           createdAt, run.html_url AS url
+    ORDER BY runSeconds DESC, createdAt DESC
 
 - name: ActionsFailedRuns
   description: >-
@@ -157,19 +163,19 @@
     limit:  { type: int, default: 50, description: "Maximum rows." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND run.conclusion = 'failure'
-      AND ($branch = '' OR run.head_branch = $branch)
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND conclusion = 'failure'
+      AND ($branch = '' OR branch = $branch)
+    WITH run, createdAt ORDER BY createdAt DESC LIMIT $limit
     RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
            run.head_branch AS branch, run.event AS event, toInteger(run.run_attempt) AS attempt,
-           run.actor AS actor, run.created_at AS createdAt,
+           run.actor AS actor, createdAt,
            round(duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds / 60.0, 1) AS runMinutes,
            run.html_url AS url
-    ORDER BY run.created_at DESC
-    LIMIT $limit
+    ORDER BY createdAt DESC
 
 - name: ActionsDailyRuns
   description: >-
@@ -183,10 +189,10 @@
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
     WITH substring(run.created_at, 0, 10) AS day, run,
          CASE WHEN run.status = 'completed' THEN duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds ELSE null END AS runSeconds
     RETURN day, count(run) AS runs,
@@ -208,16 +214,16 @@
     limit: { type: int, default: 50, description: "Maximum rows." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND toInteger(run.run_attempt) > 1 AND run.conclusion = 'success'
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND attempt > 1 AND conclusion = 'success'
+    WITH run, createdAt ORDER BY createdAt DESC LIMIT $limit
     RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
            run.head_branch AS branch, toInteger(run.run_attempt) AS attempts,
-           run.actor AS actor, run.created_at AS createdAt, run.html_url AS url
-    ORDER BY run.created_at DESC
-    LIMIT $limit
+           run.actor AS actor, createdAt, run.html_url AS url
+    ORDER BY createdAt DESC
 
 - name: ActionsWorkflows
   description: >-

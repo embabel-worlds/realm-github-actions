@@ -105,27 +105,27 @@ test('renders every panel from the fixtures, drives every path, no console error
   const failed = rowsOf(fx('ActionsFailedRuns', { repo: REPO, since: SINCE, limit: 50 }));
   await expect(page.locator('#p-runs tr.pick')).toHaveCount(slowest.length + failed.length);
   await page.locator('#p-runs tr.pick').first().click();
-  const jobs = rowsOf(fx('ActionsRunJobs', { repo: REPO, runId: slowest[0].runId, since: slowest[0].createdAt }));
+  const jobs = rowsOf(fx('ActionsRunJobs', { repo: REPO, runId: slowest[0].runId }));
   await expect(page.locator('#drawer tbody tr')).toHaveCount(jobs.length);
   await expect(page.locator('#drawer h3')).toContainText('Run ' + slowest[0].runId);
   // failures
   await page.click('nav [data-tab="failures"]');
   const tables = page.locator('#p-failures table');
-  await expect(tables.nth(0).locator('tbody tr')).toHaveCount(rowsOf(fx('ActionsFailingSteps', { repo: REPO, since: SINCE, runs: 25 })).length);
-  await expect(tables.nth(1).locator('tbody tr')).toHaveCount(rowsOf(fx('ActionsSlowestJobs', { repo: REPO, since: SINCE, runs: 8, limit: 10 })).length);
+  await expect(tables.nth(0).locator('tbody tr')).toHaveCount(rowsOf(fx('ActionsFailingSteps', { repo: REPO, since: SINCE, runs: 10 })).length);
+  await expect(tables.nth(1).locator('tbody tr')).toHaveCount(rowsOf(fx('ActionsSlowestJobs', { repo: REPO, since: SINCE, runs: 5, limit: 10 })).length);
   // flaky (30-day window regardless of the picker)
   await page.click('nav [data-tab="flaky"]');
   const ft = page.locator('#p-flaky table');
-  await expect(ft.nth(0).locator('tbody tr')).toHaveCount(rowsOf(fx('ActionsFlakyJobs', { repo: REPO, since: SINCE30, runs: 20 })).length);
+  await expect(ft.nth(0).locator('tbody tr')).toHaveCount(rowsOf(fx('ActionsFlakyJobs', { repo: REPO, since: SINCE30, runs: 10 })).length);
   await expect(ft.nth(1).locator('tbody tr')).toHaveCount(rowsOf(fx('ActionsPassedOnRetry', { repo: REPO, since: SINCE30, limit: 30 })).length);
   // reading: lazy, on click
   await page.click('nav [data-tab="insight"]');
   await expect(page.locator('#themesOut')).toBeEmpty();
   await page.click('#themesGo');
-  const themes = rowsOf(fx('ActionsFailureThemes', { repo: REPO, since: SINCE, runs: 20, count: 5 }))[0].themes;
+  const themes = rowsOf(fx('ActionsFailureThemes', { repo: REPO, since: SINCE, runs: 10, count: 5 }))[0].themes;
   await expect(page.locator('#themesOut li')).toHaveCount(themes.length);
   await page.click('#briefGo');
-  await expect(page.locator('#briefOut .prose')).toContainText(rowsOf(fx('ActionsBriefing', { repo: REPO, since: SINCE, runs: 15 }))[0].briefing.slice(0, 40));
+  await expect(page.locator('#briefOut .prose')).toContainText(rowsOf(fx('ActionsBriefing', { repo: REPO, since: SINCE, runs: 10 }))[0].briefing.slice(0, 40));
   // views explorer: every realm view listed, one run through the generated form, Cypher read back
   await page.click('nav [data-tab="views"]');
   const realmViews = contracts.views.filter((v) => v.realm === 'github-actions');

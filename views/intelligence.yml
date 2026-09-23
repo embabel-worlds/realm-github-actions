@@ -18,12 +18,12 @@
     count: { type: int, default: 5, description: "How many themes at most." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND run.conclusion = 'failure'
-    WITH run ORDER BY run.created_at DESC LIMIT $runs
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND conclusion = 'failure'
+    WITH run, createdAt ORDER BY createdAt DESC LIMIT $runs
     MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
     WHERE j.conclusion = 'failure'
     OPTIONAL MATCH (j)-[:HAS_ANNOTATION]->(a:CheckAnnotation)
@@ -62,11 +62,11 @@
   # from a collected list is not probed for its joins.
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND run.status = 'completed'
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND status = 'completed'
     WITH CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run,
          duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds,
          duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds
@@ -79,11 +79,11 @@
                  '% failure rate); average run time ' + toString(avgMin) + ' min, longest ' +
                  toString(maxMin) + ' min, average queue ' + toString(avgQueue) + ' s') AS summaryFacts
     MATCH (r2:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(f:WorkflowRun)
-    WITH summaryFacts, f
-    WHERE f.created_at >= $since AND f.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(f.created_at) >= datetime() - duration({days: $days}))
-    WITH summaryFacts, f
-    ORDER BY CASE WHEN f.conclusion = 'failure' THEN 0 ELSE 1 END, f.created_at DESC
+    WITH summaryFacts, f, f.created_at AS fCreatedAt
+    WHERE fCreatedAt >= $since AND fCreatedAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(fCreatedAt) >= datetime() - duration({days: $days}))
+    WITH summaryFacts, f, fCreatedAt, CASE WHEN f.conclusion = 'failure' THEN 0 ELSE 1 END AS failedFirst
+    ORDER BY failedFirst, fCreatedAt DESC
     LIMIT $runs
     MATCH (f)-[:HAS_JOB]->(j:WorkflowJob)
     WHERE j.conclusion = 'failure'

@@ -116,7 +116,9 @@
     step_names: "steps[*].name"
     step_conclusions: "steps[*].conclusion"
   cost: { bucket: github-core, rate: 5000/hour }
-  cache: { kind: ttl, seconds: 300, negativeTtlSeconds: 300 }
+  # The jobs of a completed run never change; an hour is the honest window for the rare run
+  # still in progress when it was opened. The envelope reports when each run's jobs were read.
+  cache: { kind: ttl, seconds: 3600, negativeTtlSeconds: 300 }
 
 # Annotations of ONE job. A job id IS its check-run id. The CheckAnnotation join composes the
 # job's runKey (itself owner+repo+run_id) with the job id, so the composite splits into four
@@ -139,7 +141,8 @@
     start_line: start_line
     raw_details: raw_details
   cost: { bucket: github-core, rate: 5000/hour }
-  cache: { kind: ttl, seconds: 3600, negativeTtlSeconds: 600 }
+  # Annotations of a finished check run never change.
+  cache: { kind: ttl, seconds: 86400, negativeTtlSeconds: 3600 }
 
 # THE HISTORY DOOR. Completed runs never change, so the last 31 days are read as CALENDAR
 # PERIODS: one call per day per repository (GitHub's `created` takes an exact date), and a

@@ -11,11 +11,11 @@
     "what step broke". Give the run id from ActionsSlowestRuns or ActionsFailedRuns.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    runId: { type: int, default: 0, description: "The numeric run id (from a run's URL or another view)." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "The run's created_at (or any ISO-8601 instant not after it). Pushed to GitHub so the lookup fetches one page instead of the last 1,000 runs; pass it when you have it." }
+    runId: { type: int, default: 0, description: "The numeric run id (from a run's URL or another view). The run must be within the last 31 days (the history door's depth)." }
   cypher: |
-    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
-    WHERE run.created_at >= $since AND toInteger(run.id) = $runId
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE toInteger(run.id) = $runId
     MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
     WITH j, CASE WHEN j.status = 'completed' THEN duration.inSeconds(datetime(j.started_at), datetime(j.completed_at)).seconds ELSE null END AS jobSeconds
     RETURN toInteger(j.id) AS jobId, j.name AS job, toInteger(j.run_attempt) AS attempt,
@@ -39,11 +39,11 @@
     limit: { type: int, default: 15, description: "How many jobs to return." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND run.status = 'completed'
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND status = 'completed'
     WITH run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
     ORDER BY runSeconds DESC LIMIT $runs
     MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
@@ -71,12 +71,12 @@
     limit: { type: int, default: 20, description: "How many (job, step) rows." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND run.conclusion = 'failure'
-    WITH run ORDER BY run.created_at DESC LIMIT $runs
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND conclusion = 'failure'
+    WITH run, createdAt ORDER BY createdAt DESC LIMIT $runs
     MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
     WHERE j.conclusion = 'failure'
     WITH run, j, [i IN range(0, size(coalesce(j.step_names, [])) - 1) WHERE j.step_conclusions[i] = 'failure' | j.step_names[i]] AS failedSteps
@@ -100,12 +100,12 @@
     runs:  { type: int, default: 25, description: "How many of the newest passed-on-retry runs to open (one API call each)." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WITH run
-    WHERE run.created_at >= $since
-      AND run.created_at < $until
-      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
-      AND toInteger(run.run_attempt) > 1 AND run.conclusion = 'success'
-    WITH run ORDER BY run.created_at DESC LIMIT $runs
+    WITH run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND attempt > 1 AND conclusion = 'success'
+    WITH run, createdAt ORDER BY createdAt DESC LIMIT $runs
     MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
     WITH run, j.name AS job, collect(DISTINCT j.conclusion) AS conclusions
     WHERE 'failure' IN conclusions AND 'success' IN conclusions

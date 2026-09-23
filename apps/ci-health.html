@@ -185,7 +185,7 @@
   <h3>1. The data</h3>
   <p>All of it comes from <strong>realm-github-actions</strong>, reading the GitHub REST API with a token that can read Actions on the repository. Nothing is mirrored: a view pins the repository by name, the engine fetches from GitHub for that query, materialises transient nodes, runs the Cypher, and rolls them back.</p>
   <pre>(ActionsWatch {full_name, branch})        the watchlist — the one STORED type; the picker and the fleet read it
-   -[:HAS_WORKFLOW_RUN]->  (WorkflowRun)    the same live door, off every followed repository at once
+   -[:HAS_RUN_HISTORY]->   (WorkflowRun)    the same cached history, off every followed repository at once
 
 (GitHubRepository {full_name})            the door — pinned by 'owner/repo'; the same label realm-github anchors issues on
    -[:HAS_WORKFLOW]->      (Workflow)       GET /repos/{o}/{r}/actions/workflows                        cached 1 h
@@ -194,8 +194,8 @@
          -[:HAS_JOB]->            (WorkflowJob)     GET .../runs/{id}/jobs?filter=all, one call per run   cached 5 min
                -[:HAS_ANNOTATION]->  (CheckAnnotation) GET .../check-runs/{job}/annotations, one call per job   cached 1 h</pre>
   <ul>
-    <li><strong>Two doors to the same runs.</strong> Completed runs never change, so the windowed panels (overview, runs, failures, flaky, reading) read <em>history</em>: the last 31 days as calendar periods, one GitHub call per day, and a closed day is cached for the life of the process. The first read of a repository costs about 31 small calls; every later read of any window costs at most one (today's slice, after five minutes). The "right now" panels — the fleet's broken mains and PRs, and a run's jobs — read <em>live</em>, with the window pushed down to GitHub's <code>created</code> filter.</li>
-    <li><strong>Freshness.</strong> Live runs and jobs are re-read after five minutes; workflows and annotations after an hour; today's history slice after five minutes; a closed day never, until the appliance restarts. A figure that disagrees with GitHub inside those windows is the cache, not a bug; the engine reports when each producer was actually read. Known edge: a run still in progress when its day closed, or re-run days later, keeps in history the state it had when that day was last read.</li>
+    <li><strong>Two doors to the same runs.</strong> Completed runs never change, so every panel here — the fleet, overview, runs, failures, flaky, reading, and a run's jobs — reads <em>history</em>: the last 31 days as calendar periods, one GitHub call per day, and a closed day is cached for the life of the process. The first read of a repository costs about 31 small calls (ten to twenty seconds); every later read of any window costs at most one call, for today's slice after five minutes. Only <code>ActionsRecentRuns</code> reads the <em>live</em> door, with the window pushed down to GitHub's <code>created</code> filter. The views keep every filter and limit on projected variables and on a <code>WITH</code>, not on the fetch, which is what lets all of them share one cached read per repository.</li>
+    <li><strong>Freshness.</strong> Today's slice is re-read after five minutes; a closed day never, until the appliance restarts. A run's jobs are re-read after an hour, annotations after a day, workflows after an hour. A figure that disagrees with GitHub inside those windows is the cache, not a bug; the engine reports when each producer was actually read. Known edge: a run still in progress when its day closed, or re-run days later, keeps in history the state it had when that day was last read.</li>
     <li><strong>The fleet.</strong> "Broken mains" is, per followed repository and workflow, the latest completed run on the watched branch; "broken PRs" is, per pull-request branch, the latest completed run. Both sweep every followed repository in one query through the watchlist's door.</li>
     <li><strong>Run time</strong> is <code>updated_at − run_started_at</code> on a completed run; <strong>queue time</strong> is <code>run_started_at − created_at</code>. Values arrive from GitHub as strings; the views coerce.</li>
     <li><strong>The daily watch</strong> (<code>ciWatch</code> in the realm's handlers) runs at 08:00 on weekdays once an operator adopts it, over the repositories seeded as <code>ActionsWatch</code>. It is not what this page reads.</li>
@@ -212,7 +212,7 @@
     <li><strong>A red notice</strong> is the lookup failing: a token without access, a repository that does not exist, GitHub unreachable. It is never shown as a zero.</li>
     <li><strong>Partial answer:</strong> the engine hit the page cap and GitHub had more. Choose a dated window and the fetch is scoped at the source.</li>
     <li><strong>An answer to a question that has different figures from a tile:</strong> the question was composed by the generator with its own window ("this week" may mean since Monday). Open <em>what ran</em> under the answer and compare the WHERE clause; ask with "in the last 7 days" to get the view's own window.</li>
-    <li><strong>A run's jobs are empty</strong> for a run older than the last 1,000: the lookup needs the run's date. Click the run in a table here and the date travels with it.</li>
+    <li><strong>A run's jobs are empty</strong> for a run older than 31 days: the lookup reads the history door, which holds 31 days.</li>
     <li><strong>The fleet says "no run in 14 days"</strong> for a repository whose watched branch is not <code>main</code>: unfollow and follow it again with the right branch (the picker follows on <code>main</code>; the watch's <code>branch</code> field can be edited through the world's repository).</li>
     <li><strong>Following fails</strong> outside the console: the picker writes the watchlist through the world gateway, which needs a signed-in session on the same origin.</li>
     <li>Deeper diagnosis: the realm ships <code>tests/verify.sh</code>, which reconciles every figure here against GitHub's API directly, and <code>scripts/test-views.py</code>.</li>
@@ -343,6 +343,13 @@
     document.querySelectorAll('section.panel').forEach(function (s) { s.classList.toggle('on', s.id === 'p-' + name); });
     try { localStorage.setItem('ci-health.tab', name); } catch (e) {}
     if (name === 'views') explorer();
+    if (name === 'runs' || name === 'failures' || name === 'flaky') hydrate(name);
+  }
+  var hydrated = {};
+  function hydrate(name) {
+    var c = ctx(); if (!/^[\w.-]+\/[\w.-]+$/.test(c.repo)) return;
+    var k = name + '|' + c.repo + '|' + c.days; if (hydrated[k]) return; hydrated[k] = true;
+    if (name === 'runs') runs(c); else if (name === 'failures') failures(c); else if (name === 'flaky') flaky(c);
   }
   document.querySelectorAll('nav [role=tab]').forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
   $('howLink').addEventListener('click', function () { $('how').classList.add('on'); howViews(); });
@@ -421,7 +428,7 @@
   }
   function jobs(c, runId, createdAt) {
     var d = $('drawer'); d.style.display = 'block'; d.innerHTML = '<h3>Run ' + runId + '</h3><div class="muted">Reading its jobs…</div>'; d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    load('ActionsRunJobs', { repo: c.repo, runId: runId, since: createdAt || c.since }).then(function (r) {
+    load('ActionsRunJobs', { repo: c.repo, runId: runId }).then(function (r) {
       if (!r.rows.length) { d.innerHTML = '<h3>Run ' + runId + '</h3>' + warnBlock(r.warnings) + empty('No jobs came back — a run still queued has none; otherwise this is the lookup failing.'); return; }
       d.innerHTML = '<h3>Run ' + runId + ' — jobs, slowest first</h3>' + warnBlock(r.warnings) + '<div class="tablewrap"><table><thead><tr><th>Job</th><th>Attempt</th><th>Result</th><th class="num">Minutes</th><th>Failed step</th><th>Runner</th><th></th></tr></thead><tbody>' +
         r.rows.map(function (j) { return '<tr><td>' + esc(j.job) + '</td><td>#' + j.attempt + '</td><td>' + pill(j.conclusion) + '</td><td class="num">' + (j.runMinutes == null ? '—' : j.runMinutes) + '</td><td style="color:var(--red)">' + esc((j.failedSteps || []).join(', ')) + '</td><td class="muted">' + esc(j.runner || '') + '</td><td>' + link(j.url, 'log') + '</td></tr>'; }).join('') + '</tbody></table></div>';
@@ -431,7 +438,7 @@
   /* ── failures ── */
   function failures(c) {
     var el = $('p-failures');
-    Promise.all([load('ActionsFailingSteps', { repo: c.repo, since: c.since, runs: 25 }), load('ActionsSlowestJobs', { repo: c.repo, since: c.since, runs: 8, limit: 10 })]).then(function (r) {
+    Promise.all([load('ActionsFailingSteps', { repo: c.repo, since: c.since, runs: 10 }), load('ActionsSlowestJobs', { repo: c.repo, since: c.since, runs: 5, limit: 10 })]).then(function (r) {
       var f = r[0], s = r[1];
       el.innerHTML = '<h3 class="t">What keeps failing — by job and step</h3>' + warnBlock(f.warnings) +
         (f.rows.length ? '<div class="tablewrap"><table><thead><tr><th>Workflow</th><th>Job</th><th>Failed step</th><th class="num">Failures</th><th class="num">Runs</th><th>Examples</th></tr></thead><tbody>' +
@@ -443,7 +450,7 @@
   }
   function flaky(c) {
     var el = $('p-flaky'), since30 = iso(Date.now() - 30 * 86400000);
-    Promise.all([load('ActionsPassedOnRetry', { repo: c.repo, since: since30, limit: 30 }), load('ActionsFlakyJobs', { repo: c.repo, since: since30, runs: 20 })]).then(function (r) {
+    Promise.all([load('ActionsPassedOnRetry', { repo: c.repo, since: since30, limit: 30 }), load('ActionsFlakyJobs', { repo: c.repo, since: since30, runs: 10 })]).then(function (r) {
       var p = r[0], j = r[1];
       el.innerHTML = '<p class="muted">Last 30 days whatever the window above: flakiness needs a longer look.</p>' + warnBlock(p.warnings) +
         '<h3 class="t">Jobs that failed, then passed on re-run</h3>' + (j.rows.length ? '<div class="tablewrap"><table><thead><tr><th>Job</th><th>Workflow</th><th class="num">Times</th><th>Examples</th></tr></thead><tbody>' + j.rows.map(function (x) { return '<tr><td>' + esc(x.job) + '</td><td>' + esc(x.workflow) + '</td><td class="num">' + x.timesFlaked + '</td><td>' + (x.exampleRuns || []).map(function (u, i) { return link(u, 'run ' + (i + 1)); }).join(' · ') + '</td></tr>'; }).join('') + '</tbody></table></div>' : empty('No job flaked: nothing passed on retry in the last 30 days, or the retried runs had no job that both failed and passed.')) +
@@ -452,13 +459,13 @@
   }
   $('themesGo').addEventListener('click', function () {
     var c = ctx(), out = $('themesOut'); out.innerHTML = '<div class="muted">Reading failures…</div>';
-    load('ActionsFailureThemes', { repo: c.repo, since: c.since, runs: 20, count: 5 }).then(function (r) { var t = r.rows[0] && r.rows[0].themes;
+    load('ActionsFailureThemes', { repo: c.repo, since: c.since, runs: 10, count: 5 }).then(function (r) { var t = r.rows[0] && r.rows[0].themes;
       out.innerHTML = warnBlock(r.warnings) + (Array.isArray(t) && t.length ? '<ol class="prose" style="padding-left:34px">' + t.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : empty(typeof t === 'string' ? t : 'No failures to read in the window.'));
     }).catch(function (e) { failure(out, e); });
   });
   $('briefGo').addEventListener('click', function () {
     var c = ctx(), out = $('briefOut'); out.innerHTML = '<div class="muted">Composing…</div>';
-    load('ActionsBriefing', { repo: c.repo, since: c.since, runs: 15 }).then(function (r) { var b = r.rows[0] && r.rows[0].briefing;
+    load('ActionsBriefing', { repo: c.repo, since: c.since, runs: 10 }).then(function (r) { var b = r.rows[0] && r.rows[0].briefing;
       out.innerHTML = warnBlock(r.warnings) + (b && !String(b).startsWith('UNAVAILABLE') ? '<div class="prose">' + esc(b) + '</div>' : empty('Nothing to brief on: no completed runs in the window.'));
     }).catch(function (e) { failure(out, e); });
   });
@@ -542,7 +549,10 @@
     if (!/^[\w.-]+\/[\w.-]+$/.test(c.repo)) { $('verdict').className = 'verdict'; $('verdict').innerHTML = '<div class="big">Pick a repository to read.</div><div class="why">The Fleet tab shows every repository you follow; the other tabs need one picked.</div>'; $('tiles').innerHTML = ''; ['overview', 'runs', 'failures', 'flaky'].forEach(function (p) { $('p-' + p).innerHTML = empty('Pick a repository first.'); }); return; }
     chips();
     $('verdict').className = 'verdict'; $('verdict').innerHTML = '<div class="big">Reading ' + esc(c.repo) + '…</div><div class="why">Reading the runs since ' + esc(c.since) + '.</div>';
-    headline(c); overview(c); runs(c); failures(c); flaky(c);
+    hydrated = {};
+    headline(c); overview(c);
+    ['runs', 'failures', 'flaky'].forEach(function (p) { $('p-' + p).innerHTML = '<div class="muted">Opens when you open the tab.</div>'; });
+    var open = document.querySelector('nav [role=tab][aria-selected="true"]'); if (open) hydrate(open.dataset.tab);
     if (selected) pick(selected);
   }
   $('go').addEventListener('click', readAll);

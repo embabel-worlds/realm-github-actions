@@ -47,12 +47,12 @@ CALLS = [
     ('ActionsDailyRuns', {'repo': REPO, 'since': SINCE}),
     ('ActionsSlowestRuns', {'repo': REPO, 'since': SINCE, 'limit': 15}),
     ('ActionsFailedRuns', {'repo': REPO, 'since': SINCE, 'limit': 50}),
-    ('ActionsFailingSteps', {'repo': REPO, 'since': SINCE, 'runs': 25}),
-    ('ActionsSlowestJobs', {'repo': REPO, 'since': SINCE, 'runs': 8, 'limit': 10}),
+    ('ActionsFailingSteps', {'repo': REPO, 'since': SINCE, 'runs': 10}),
+    ('ActionsSlowestJobs', {'repo': REPO, 'since': SINCE, 'runs': 5, 'limit': 10}),
     ('ActionsPassedOnRetry', {'repo': REPO, 'since': SINCE30, 'limit': 30}),
-    ('ActionsFlakyJobs', {'repo': REPO, 'since': SINCE30, 'runs': 20}),
-    ('ActionsFailureThemes', {'repo': REPO, 'since': SINCE, 'runs': 20, 'count': 5}),
-    ('ActionsBriefing', {'repo': REPO, 'since': SINCE, 'runs': 15}),
+    ('ActionsFlakyJobs', {'repo': REPO, 'since': SINCE30, 'runs': 10}),
+    ('ActionsFailureThemes', {'repo': REPO, 'since': SINCE, 'runs': 10, 'count': 5}),
+    ('ActionsBriefing', {'repo': REPO, 'since': SINCE, 'runs': 10}),
     # the views explorer runs a view with the form's defaults; repo/since prefilled, until cleared
     ('ActionsRunCount', {'repo': REPO, 'days': 7, 'since': SINCE}),
 ]
@@ -66,7 +66,7 @@ for name, args in CALLS:
 slow = envelopes[key('ActionsSlowestRuns', {'repo': REPO, 'since': SINCE, 'limit': 15})]
 srows = slow.get('data') if isinstance(slow.get('data'), list) else (slow.get('data') or {}).get('rows') or []
 if srows:
-    args = {'repo': REPO, 'runId': srows[0]['runId'], 'since': srows[0]['createdAt']}
+    args = {'repo': REPO, 'runId': srows[0]['runId']}
     envelopes[key('ActionsRunJobs', args)] = json.loads(req('/api/v1/views/ActionsRunJobs/invoke', {'args': args}))
     print('captured ActionsRunJobs for run', srows[0]['runId'])
 json.dump({'capturedAt': NOW_MS, 'repo': REPO, 'since': SINCE, 'envelopes': envelopes}, open(os.path.join(FX, 'envelopes.json'), 'w'), indent=1)

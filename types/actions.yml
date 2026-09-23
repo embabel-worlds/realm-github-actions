@@ -71,7 +71,15 @@
       producer: runsByRepo
       maxAnchors: 50
       maxFanoutTotal: 50000
-      description: "The recent runs of every followed repository at once — for 'which mains are broken', 'which PRs are red', 'how is CI across our repos'."
+      description: "The recent runs of every followed repository at once, read live."
+    - anchorLabel: ActionsWatch
+      relationship: HAS_RUN_HISTORY
+      keyField: full_name
+      recordKeyField: repository
+      producer: runHistoryByRepo
+      maxAnchors: 50
+      maxFanoutTotal: 200000
+      description: "The last 31 days of runs of every followed repository at once, from the cached history — the door for 'which mains are broken', 'which PRs are red', 'how is CI across our repos'."
   examples:
     - q: "how many workflow runs did embabel/embabel-agent have in the last 7 days"
       cypher: |
