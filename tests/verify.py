@@ -228,10 +228,11 @@ for entry in battery:
             # against the view run with THAT window, so a bound-but-honest window is not a failure
             # and a composed query with a different figure still is.
             args = dict({'repo': REPO}, **mv.get('args', {}))
-            m_since = re.search(r"created_at >= '(\d{4}-\d{2}-\d{2}T[^']+)'", cypher or '')
-            m_until = re.search(r"created_at < '(\d{4}-\d{2}-\d{2}T[^']+)'", cypher or '')
-            if m_since and not m_since.group(1).startswith('1970'): args['since'] = m_since.group(1)
-            if m_until and not m_until.group(1).startswith('9999'): args['until'] = m_until.group(1)
+            m_since = re.search(r"created_at >= '(\d{4}-\d{2}-\d{2}(?:T[^']+)?)'", cypher or '')
+            m_until = re.search(r"created_at < '(\d{4}-\d{2}-\d{2}(?:T[^']+)?)'", cypher or '')
+            norm = lambda s: s if 'T' in s else s + 'T00:00:00Z'
+            if m_since and not m_since.group(1).startswith('1970'): args['since'] = norm(m_since.group(1))
+            if m_until and not m_until.group(1).startswith('9999'): args['until'] = norm(m_until.group(1))
             vrows, _ = view(mv['name'], args)
             want = top_figure(vrows, mv['column'])
             if isinstance(want, str):

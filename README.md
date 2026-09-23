@@ -124,9 +124,14 @@ Green means: every figure on every surface equals what GitHub says for the same 
   "Process completed with exit code 1"); the realm does not read logs. That is the next
   producer worth adding.
 - The natural-language path selects a view when one claims the question; otherwise it composes
-  its own Cypher, and a phrasing like "this week" may mean since Monday. Say "in the last 7
-  days" for the view's window. The steers on `WorkflowRun` cover the three questions that
-  once composed wrongly.
+  its own Cypher over the same rows, and a phrasing like "this week" may mean since Monday. The
+  ladder's last run on 23 September 2026: L0–L2 exact on every figure, 36 checks green, and
+  six red — all in three battery phrasings the generator still composes with a different
+  measure than the view ("CI success rate" over all runs rather than completed ones, "took the
+  longest" in minutes over a day-aligned window, "fails most often" as a count over 31 days).
+  The figures those answers carry are real; they are not the view's. The stable fix is view
+  selection, and the descriptions now claim those phrasings; until it holds, the app and the
+  hints route those questions to the views.
 - Looking a run up by id without its date walks the last 1,000 runs and once returned nothing
   on this appliance; every surface here passes the run's `created_at` as `since`.
 - `pr_numbers` is usually empty: GitHub links pull requests to a run only in some cases.
