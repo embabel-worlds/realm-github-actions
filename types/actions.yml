@@ -46,7 +46,7 @@
 - name: WorkflowRun
   visibility: internal
   userAnchor: false
-  description: "One run of a workflow, newest first, latest attempt only. Reached from GitHubRepository via HAS_WORKFLOW_RUN — up to the 1,000 most recent runs (10 pages of 100); a window older than that is reported PARTIAL. Timestamps are ISO strings: run time is updated_at minus run_started_at for a completed run; queue time is run_started_at minus created_at. conclusion is null while status is not 'completed'. To scope a window, filter created_at against an ISO-8601 LITERAL (run.created_at >= '2026-09-16T00:00:00Z'): a literal is pushed to GitHub and fetches one page; a computed date (datetime() - duration(...)) is not, and walks up to 1,000 runs. Literal equality on head_branch, event, actor and conclusion is pushed down too."
+  description: "One run of a workflow, newest first, latest attempt only. Reached from GitHubRepository via HAS_WORKFLOW_RUN — up to the 1,000 most recent runs (10 pages of 100); a window older than that is reported PARTIAL. Timestamps are ISO strings: run time is updated_at minus run_started_at for a completed run; queue time is run_started_at minus created_at. conclusion is null while status is not 'completed'. A question that names NO repository means every followed repository: start at (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run) and group by w.full_name; a bare (r:GitHubRepository) with no full_name matches nothing. Filter on PROJECTED variables (WITH run, run.created_at AS createdAt, run.status AS status WHERE …), never on run.<property> directly, and limit by collect + list slice rather than LIMIT — that is what lets the query share the cached history instead of re-reading GitHub. On HAS_WORKFLOW_RUN (live) a literal created_at lower bound is pushed to GitHub."
   virtualJoins:
     - anchorLabel: GitHubRepository
       relationship: HAS_WORKFLOW_RUN
@@ -84,21 +84,33 @@
     - q: "how many workflow runs did embabel/embabel-agent have in the last 7 days"
       cypher: |
         MATCH (r:GitHubRepository {full_name: 'embabel/embabel-agent'})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-        WHERE datetime(run.created_at) >= datetime() - duration({days: 7})
-        RETURN count(run) AS runs,
-               sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed
+        WITH run, run.created_at AS createdAt, run.conclusion AS conclusion
+        WHERE datetime(createdAt) >= datetime() - duration({days: 7})
+        RETURN count(run) AS runs, sum(CASE WHEN conclusion = 'failure' THEN 1 ELSE 0 END) AS failed
+    - q: "what is the average build time"
+      cypher: |
+        MATCH (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+        WITH w, run, run.created_at AS createdAt, run.status AS status
+        WHERE datetime(createdAt) >= datetime() - duration({days: 7}) AND status = 'completed'
+        WITH w.full_name AS repo, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
+        RETURN repo, count(*) AS runs, round(avg(runSeconds) / 60.0, 1) AS avgRunMinutes
     - q: "which build in embabel/embabel-agent took the longest in the last 7 days"
       cypher: |
         MATCH (r:GitHubRepository {full_name: 'embabel/embabel-agent'})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-        WHERE datetime(run.created_at) >= datetime() - duration({days: 7}) AND run.status = 'completed'
+        WITH run, run.created_at AS createdAt, run.status AS status
+        WHERE datetime(createdAt) >= datetime() - duration({days: 7}) AND status = 'completed'
         WITH run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
-        RETURN toInteger(run.id) AS runId, run.name AS workflow, run.display_title AS title, runSeconds, run.html_url AS url
-        ORDER BY runSeconds DESC LIMIT 5
+        ORDER BY runSeconds DESC
+        WITH collect({runId: toInteger(run.id), workflow: run.name, title: run.display_title, runSeconds: runSeconds, url: run.html_url}) AS rows
+        UNWIND rows[0..5] AS row
+        RETURN row.runId AS runId, row.workflow AS workflow, row.title AS title, row.runSeconds AS runSeconds, row.url AS url
     - q: "why was run 35703978620 in embabel/embabel-agent slow"
       cypher: |
-        MATCH (r:GitHubRepository {full_name: 'embabel/embabel-agent'})-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
-        WHERE toInteger(run.id) = 35703978620
+        MATCH (r:GitHubRepository {full_name: 'embabel/embabel-agent'})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+        WITH run, CASE WHEN toInteger(run.id) = 35703978620 THEN 0 ELSE 1 END AS pick
+        ORDER BY pick LIMIT 1
         MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+        WITH j, pick WHERE pick = 0
         RETURN j.name AS job, j.conclusion AS conclusion,
                duration.inSeconds(datetime(j.started_at), datetime(j.completed_at)).seconds AS jobSeconds,
                [i IN range(0, size(coalesce(j.step_names, [])) - 1) WHERE j.step_conclusions[i] = 'failure' | j.step_names[i]] AS failedSteps

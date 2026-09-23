@@ -138,10 +138,18 @@ test('renders every panel from the fixtures, drives every path, no console error
   await expect(page.locator('#vout tbody tr')).toHaveCount(1);
   await expect(page.locator('#vout tbody td').first()).toHaveText(String(count.runs));
   await expect(page.locator('#vcy pre')).toContainText('MATCH (r:GitHubRepository');
-  // ask in words
+  // ask in words: a claimed phrasing is routed to the verified view (no model call)
   await page.fill('#q', 'which workflow in ' + REPO + ' fails most often');
   await page.click('#askGo');
-  await expect(page.locator('#answer tbody tr')).toHaveCount((askEnvelope.rows || []).length);
+  await expect(page.locator('#answer tbody tr')).toHaveCount(rowsOf(fx('ActionsWorkflowSummary', { repo: REPO, since: SINCE })).length);
+  await expect(page.locator('#answer .meta')).toContainText('answered by the view');
+  await page.fill('#q', 'what is the average build time');
+  await page.click('#askGo');
+  await expect(page.locator('#answer .meta')).toContainText('ActionsRunTime');
+  // an unclaimed question goes to the model and is marked unverified, Cypher shown
+  await page.fill('#q', 'who triggered the most runs');
+  await page.click('#askGo');
+  await expect(page.locator('#answer .note')).toContainText('Unverified');
   await expect(page.locator('#answer details pre')).toContainText('MATCH');
   // the badge, visible and inside the viewport
   const badge = page.locator('#embabel-badge');

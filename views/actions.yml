@@ -64,6 +64,38 @@
            CASE WHEN completed = 0 THEN null
                 ELSE round(100.0 * succeeded / completed, 1) END AS successRatePct
 
+- name: ActionsRunTime
+  description: >-
+    SELECT THIS for "what is the average build time", "how long do builds take", "mean run
+    time", "average duration of CI", "typical build time" — for one repository (repo) or across
+    every followed repository (repo empty). One row over the window: completed runs, average,
+    median-ish (the run at the 50th position), 90th-percentile and longest run time in minutes,
+    average queue seconds. Run time is updated_at − run_started_at on a completed run.
+  params:
+    repo:  { type: string, default: "", description: "Repository as owner/repo; empty = every followed repository." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 31; ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+  cypher: |
+    MATCH (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH w, run, run.created_at AS createdAt, run.status AS status, w.full_name AS repo
+    WHERE ($repo = '' OR repo = $repo)
+      AND createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND status = 'completed'
+    WITH run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds,
+         duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds
+    ORDER BY runSeconds ASC
+    WITH collect(runSeconds) AS secs, avg(runSeconds) AS avgSeconds, max(runSeconds) AS maxSeconds,
+         avg(queueSeconds) AS avgQueue, count(run) AS runs
+    RETURN runs,
+           round(avgSeconds / 60.0, 1) AS avgRunMinutes,
+           CASE WHEN runs = 0 THEN null ELSE round(secs[toInteger(runs / 2)] / 60.0, 1) END AS medianRunMinutes,
+           CASE WHEN runs = 0 THEN null ELSE round(secs[toInteger(runs * 0.9)] / 60.0, 1) END AS p90RunMinutes,
+           round(maxSeconds / 60.0, 1) AS longestRunMinutes,
+           round(avgQueue, 0) AS avgQueueSeconds
+
 - name: ActionsRecentRuns
   description: >-
     The runs in a window, newest first, each with its workflow, branch, trigger, conclusion,

@@ -18,6 +18,12 @@
   expect: { matchesView: { name: ActionsRunCount, column: failed } }
 - question: "what is the CI success rate for {repo} in the last 7 days"
   expect: { matchesView: { name: ActionsRunCount, column: successRatePct } }
+- question: "what is the average build time in {repo}"
+  expect: { matchesView: { name: ActionsRunTime, column: avgRunMinutes, args: { repo: "{repo}" } } }
+- question: "what is the average build time"
+  expect: { nonEmpty: true }   # no repository named = every followed repository, through the watchlist door
+- question: "how long do builds take in {repo}"
+  expect: { matchesView: { name: ActionsRunTime, column: avgRunMinutes, args: { repo: "{repo}" } } }
 - question: "which build in {repo} took the longest in the last 7 days"
   expect: { matchesView: { name: ActionsSlowestRuns, column: runSeconds } }
 - question: "slowest workflow runs in {repo} in the last 7 days"

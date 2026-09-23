@@ -12,8 +12,8 @@
 <script type="application/embabel-app+json">
 {"version":1,"name":"ci-health","title":"CI Health",
  "description":"GitHub Actions CI for one repository over realm-github-actions: ask in words, run any of the realm's views with a generated form, and read the dashboard — health per workflow, trend, slowest and failed runs with their jobs, failing steps, flaky jobs, failure themes and a standup briefing. Every figure links back to GitHub.",
- "requires":{"lenses":[],"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests"],"realms":["github-actions"],"namespaces":["repository"]},
- "dependsOn":{"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests"],"realms":["github-actions"],"gateway":["kg","repository"]}}
+ "requires":{"lenses":[],"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime"],"realms":["github-actions"],"namespaces":["repository"]},
+ "dependsOn":{"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime"],"realms":["github-actions"],"gateway":["kg","repository"]}}
 </script>
 <style>
   :root{--bg:#0a0a0f;--surface:#13131a;--surface2:#171722;--border:#1e1e2e;--cyan:#63c0f5;--green:#3fd73c;--dim:#6b7280;
@@ -138,7 +138,8 @@
 <embabel-operation-state id="state"></embabel-operation-state>
 
 <div class="ask">
-  <div class="row"><input id="q" placeholder="Ask about this repository's CI in your own words… e.g. which build took the longest in the last 7 days" aria-label="Question"><button class="btn" id="askGo">Ask</button></div>
+  <div class="row"><input id="q" placeholder="Ask about this repository's CI in your own words… e.g. what is the average build time" aria-label="Question"><button class="btn" id="askGo">Ask</button></div>
+  <p class="muted" style="margin:6px 0 0">A question a saved view claims is answered by that view, which the realm verifies against GitHub. Anything else goes to the model and is marked unverified.</p>
   <div class="chips" id="chips"></div>
   <div class="answer" id="answer"></div>
 </div>
@@ -223,7 +224,7 @@
   <ul>
     <li>Three GitHub endpoints joined as one graph with no ETL, no schedule and no copy: the joins are declared in the realm's types, and the fetch happens per query. A conventional stack mirrors runs into a database on a schedule and answers from the copy.</li>
     <li>The judgment sits beside the figure: <code>themes()</code> and <code>synthesize()</code> run inside the same query that produced the counts (see the Cypher above), so the prose cannot drift from the table. Conventionally that is a separate pipeline with its own staleness.</li>
-    <li>The same views answer this page, a question typed in words (the ask bar selects a view when one claims the question, and shows the Cypher either way), and the world's SQL and OData doors. One definition, validated when saved.</li>
+    <li>The same views answer this page, a question typed in words (the ask bar routes a question a view claims to that view, and marks anything the model composed as unverified, Cypher shown), and the world's SQL and OData doors. One definition, validated when saved.</li>
     <li>There is no backend for this page to deploy or patch: it asks the world by view name at load.</li>
   </ul>
 </div>
@@ -372,12 +373,57 @@
   if (location.hash === '#how') { $('how').classList.add('on'); setTimeout(howViews, 0); }
 
   /* ── ask in words ── */
-  var EXAMPLES = ['how are the builds doing in {repo}', 'which build in {repo} took the longest in the last 7 days', 'what failed in {repo} in the last 7 days',
+  var EXAMPLES = ['how are the builds doing in {repo}', 'what is the average build time in {repo}', 'which build in {repo} took the longest in the last 7 days', 'what failed in {repo} in the last 7 days',
     'what keeps failing in {repo}', 'which workflow in {repo} fails most often', 'which runs in {repo} passed on retry in the last 30 days', 'builds per day in {repo} over the last two weeks'];
   function chips() { var c = ctx(); $('chips').innerHTML = EXAMPLES.map(function (q) { return '<button class="chip" type="button">' + esc(q.replace('{repo}', c.repo)) + '</button>'; }).join('');
     $('chips').querySelectorAll('.chip').forEach(function (b) { b.addEventListener('click', function () { $('q').value = b.textContent; ask(); }); }); }
+  /* Every route below lands on a view the realm's harness reconciles against GitHub. A question
+     no route claims goes to the model, which composes its own Cypher over the same rows; that
+     answer is shown with its Cypher and labelled unverified, because its definitions (window,
+     grouping, denominator) can differ from the views'. */
+  var ROUTES = [
+    { re: /\b(mains?|main branch(es)?)\b.*\b(broken|red|failing|green)\b|\b(broken|red|failing)\b.*\bmains?\b|is main green/i, view: 'ActionsBrokenMains', args: function (c) { return { since: iso(Date.now() - 14 * 86400000) }; }, fleet: true },
+    { re: /\b(prs?|pull[- ]requests?)\b.*\b(broken|red|failing)\b|\b(broken|red|failing)\b.*\b(prs?|pull[- ]requests?)\b/i, view: 'ActionsBrokenPullRequests', args: function (c) { return { since: c.since, limit: 100 }; }, fleet: true },
+    { re: /\b(follow(ing|ed)?|watch(ing|ed|list)?)\b.*\brepos/i, view: 'ActionsWatchlist', args: function () { return {}; }, fleet: true },
+    { re: /\b(average|mean|median|typical|p90)\b.*\b(build|run|ci|pipeline)\b.*\b(time|duration|long)\b|how long (do|does|are) .*\b(build|run)s?\b/i, view: 'ActionsRunTime', args: function (c) { return { repo: c.repo, since: c.since }; } },
+    { re: /\b(success|pass|failure) rate\b|how many .*\b(runs?|builds?)\b|\bcount\b.*\bruns?\b/i, view: 'ActionsRunCount', args: function (c) { return { repo: c.repo, since: c.since }; } },
+    { re: /\bfails? (the )?most\b|\bmost (often|frequently)\b|\bper workflow\b|\bby workflow\b|how are (the |our )?builds|\bci health\b|\bhealth\b/i, view: 'ActionsWorkflowSummary', args: function (c) { return { repo: c.repo, since: c.since }; } },
+    { re: /\b(slowest|longest|took the longest|long[- ]running)\b/i, view: 'ActionsSlowestRuns', args: function (c) { return { repo: c.repo, since: c.since, limit: 15 }; } },
+    { re: /why (was|is|did) run (\d+)/i, view: 'ActionsRunJobs', args: function (c, m) { return { repo: c.repo, runId: Number(m[2]) }; } },
+    { re: /\b(which|what) (job|step)s? (failed|broke)\b.*\brun (\d+)|\brun (\d+)\b.*\b(jobs?|steps?)\b/i, view: 'ActionsRunJobs', args: function (c, m) { return { repo: c.repo, runId: Number(m[4] || m[5]) }; } },
+    { re: /\b(keeps? failing|common(est)? failure|most common|which step|failing steps?)\b/i, view: 'ActionsFailingSteps', args: function (c) { return { repo: c.repo, since: c.since, runs: 10 }; } },
+    { re: /\bwhy (do|are) .*fail|\b(causes?|themes?|reasons?)\b.*\bfail|summari[sz]e .*failures/i, view: 'ActionsFailureThemes', args: function (c) { return { repo: c.repo, since: c.since, runs: 10, count: 5 }; } },
+    { re: /\bflaky (jobs?|tests?)\b|\bkeep re-?running\b/i, view: 'ActionsFlakyJobs', args: function (c) { return { repo: c.repo, since: iso(Date.now() - 30 * 86400000), runs: 10 }; } },
+    { re: /\b(flaky|retry|retried|re-?run)\b/i, view: 'ActionsPassedOnRetry', args: function (c) { return { repo: c.repo, since: iso(Date.now() - 30 * 86400000), limit: 30 }; } },
+    { re: /\b(per day|each day|daily|by day|trend|getting slower)\b/i, view: 'ActionsDailyRuns', args: function (c) { return { repo: c.repo, since: c.since }; } },
+    { re: /\b(brief|standup|stand-up|summary of ci|ci status)\b/i, view: 'ActionsBriefing', args: function (c) { return { repo: c.repo, since: c.since, runs: 10 }; } },
+    { re: /\b(what|which) workflows\b|\bworkflows (do|does|are)\b|\bdisabled workflows\b/i, view: 'ActionsWorkflows', args: function (c) { return { repo: c.repo }; } },
+    { re: /\b(failed|failing|broke|broken|red)\b.*\b(runs?|builds?)\b|\bwhat failed\b|\b(runs?|builds?)\b.*\b(failed|failing|broke)\b/i, view: 'ActionsFailedRuns', args: function (c) { return { repo: c.repo, since: c.since, limit: 50 }; } },
+    { re: /\b(recent|latest|last|newest) (runs?|builds?)\b|what ran/i, view: 'ActionsRecentRuns', args: function (c) { return { repo: c.repo, since: c.since, limit: 50 }; } },
+  ];
+  function route(q, c) {
+    for (var i = 0; i < ROUTES.length; i++) { var m = q.match(ROUTES[i].re); if (m) { if (!ROUTES[i].fleet && !c.repo) return null; return { view: ROUTES[i].view, args: ROUTES[i].args(c, m) }; } }
+    return null;
+  }
   function ask() {
     var q = $('q').value.trim(); if (!q) return;
+    var c = ctx();
+    var r = route(q, c);
+    if (r) {
+      var out0 = $('answer'); out0.innerHTML = '<div class="muted">Running the view <code>' + esc(r.view) + '</code> that answers this…</div>'; $('askGo').disabled = true;
+      var t0 = Date.now();
+      load(r.view, r.args).then(function (res) {
+        var rows = res.rows, html = '';
+        html += rows.length ? grid(rows.slice(0, 200)) : '<div class="empty">No rows from ' + esc(r.view) + ' for these parameters — see How it works, "When it looks wrong".</div>';
+        html += warnBlock(res.warnings);
+        html += '<div class="meta"><span>answered by the view <code>' + esc(r.view) + '</code>, which the realm verifies against GitHub</span><span>' + rows.length + ' rows</span><span>' + Math.round((Date.now() - t0) / 100) / 10 + ' s</span><span class="muted">args ' + esc(JSON.stringify(r.args)) + '</span></div>';
+        out0.innerHTML = html;
+      }).catch(function (e) { failure(out0, e); }).then(function () { $('askGo').disabled = false; });
+      return;
+    }
+    // A question that names no repository is asked about the picked one; "we"/"our repos" questions
+    // (mains, PRs, fleet, follow) are left alone — they mean every followed repository.
+    if (c.repo && !/[\w.-]+\/[\w.-]+/.test(q) && !/\b(mains?|prs?|pull requests?|repos|repositories|fleet|follow)\b/i.test(q)) q = q + ' in ' + c.repo;
     var out = $('answer'); out.innerHTML = '<div class="muted">Asking the world… the question is turned into a query over the realm, or routed to a view that claims it.</div>';
     $('askGo').disabled = true;
     fetch('/api/v1/admin/kg/ask', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) })
@@ -386,9 +432,10 @@
         var rows = rowsOf(d), w = warningsOf(d);
         var html = '';
         if (d.error) html += '<div class="note bad"><strong>The question could not be answered.</strong> ' + esc(d.error) + '</div>';
+        html += '<div class="note"><strong>Unverified.</strong> No saved view claims this question, so the model composed its own query over the same rows. The rows are real; the window, grouping or denominator may differ from the views\'. Open <em>what ran</em> to check it.</div>';
         html += rows.length ? grid(rows.slice(0, 200)) : '<div class="empty">No rows. Either nothing matches, or the sources do not carry this — open <em>what ran</em> to see which.</div>';
         html += warnBlock(w);
-        html += '<div class="meta"><span>' + rows.length + (rows.length === 200 ? '+' : '') + ' rows</span><span>' + (d.apiCalls == null ? '' : d.apiCalls + ' GitHub calls') + '</span><span>' + (d.llmCalls ? d.llmCalls + ' model call' + (d.llmCalls > 1 ? 's' : '') : 'no model call in the query') + '</span><span>' + (d.durationMs ? Math.round(d.durationMs / 100) / 10 + ' s' : '') + '</span></div>';
+        html += '<div class="meta"><span class="muted">asked: ' + esc(q) + '</span></div><div class="meta"><span>' + rows.length + (rows.length === 200 ? '+' : '') + ' rows</span><span>' + (d.apiCalls == null ? '' : d.apiCalls + ' GitHub calls') + '</span><span>' + (d.llmCalls ? d.llmCalls + ' model call' + (d.llmCalls > 1 ? 's' : '') : 'no model call in the query') + '</span><span>' + (d.durationMs ? Math.round(d.durationMs / 100) / 10 + ' s' : '') + '</span></div>';
         if (d.cypher) html += '<details class="cy"><summary>what ran</summary><pre class="cy">' + esc(d.cypher) + '</pre></details>';
         out.innerHTML = html;
       })

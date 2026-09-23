@@ -35,15 +35,17 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 - `producers/` — four remote producers. `runsByRepo` is the live door with pushdown on
   `created_at`, `head_branch`, `event`, `actor` and `conclusion`; `runHistoryByRepo` is the
   same endpoint read as calendar periods (see *Caching*).
-- `views/` — the answer surface, one per question: `actions.yml` (counts, summary, slowest,
-  failed, trend, retries, workflows), `jobs.yml` (a run's jobs, slowest jobs, failing steps,
+- `views/` — the answer surface, one per question: `actions.yml` (counts, run time, summary,
+  slowest, failed, trend, retries, workflows), `jobs.yml` (a run's jobs, slowest jobs, failing steps,
   flaky jobs), `intelligence.yml` (failure themes with `themes()`, the standup briefing with
   `synthesize()`, both in-query), `fleet.yml` (the watchlist, broken mains, broken PRs).
 - `wasm/handlers.ts` — `ciWatch`, a weekday-morning schedule over the watchlist: what is red
   now, what failed in the last day, the longest run. Installed makes it available; an operator
   adopts it before it fires.
 - `apps/ci-health.html` — **CI Health**: a picker over the repositories you follow (filter,
-  swap, follow and unfollow), an ask bar in words, a Fleet tab of broken mains and broken PRs,
+  swap, follow and unfollow), an ask bar in words that routes a question a view claims to that
+  view and marks anything the model composes as unverified, a Fleet tab of broken mains and
+  broken PRs,
   the per-repository dashboard, every view runnable from a generated form with the Cypher that
   ran, and a *How it works* page that reads each view back from the server.
 - `skills/github-actions/SKILL.md` — question → view, for an assistant.
@@ -135,14 +137,13 @@ Green means: every figure on every surface equals what GitHub says for the same 
   "Process completed with exit code 1"); the realm does not read logs. That is the next
   producer worth adding.
 - The natural-language path selects a view when one claims the question; otherwise it composes
-  its own Cypher over the same rows, and a phrasing like "this week" may mean since Monday. The
-  ladder's last run on 23 September 2026: L0–L2 exact on every figure, 37 checks green, and
-  five red — all in three battery phrasings the generator still composes with a different
-  measure than the view ("CI success rate" over all runs rather than completed ones, "took the
-  longest" in minutes over a day-aligned window, "fails most often" as a count over 31 days).
-  The figures those answers carry are real; they are not the view's. The stable fix is view
-  selection, and the descriptions now claim those phrasings; until it holds, the app and the
-  hints route those questions to the views.
+  its own Cypher over the same rows, and the result can be honest-but-different (a success
+  rate as a fraction, an average with no window, a workflow grouped by run title) or empty (a
+  question naming no repository once matched every repository and got nothing). So the app's
+  ask bar routes the phrasings the battery covers straight to the views, and sends anything
+  else to the model marked **unverified**, Cypher shown. The generator now has steers in the
+  cache-sharing shape and a watchlist-door example for unscoped questions; the ladder still
+  reports the phrasings it composes with a different measure.
 - A run's jobs are looked up through the history door, so a run older than 31 days has none
   here; GitHub's page shows them.
 - `pr_numbers` is usually empty: GitHub links pull requests to a run only in some cases.

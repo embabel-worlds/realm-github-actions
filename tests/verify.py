@@ -227,7 +227,7 @@ for entry in battery:
             # When the pipeline SELECTED the view it binds its own window (a date literal); reconcile
             # against the view run with THAT window, so a bound-but-honest window is not a failure
             # and a composed query with a different figure still is.
-            args = dict({'repo': REPO}, **mv.get('args', {}))
+            args = dict({'repo': REPO}, **{k: (str(val).replace('{repo}', REPO) if isinstance(val, str) else val) for k, val in mv.get('args', {}).items()})
             m_since = re.search(r"created_at >= '(\d{4}-\d{2}-\d{2}(?:T[^']+)?)'", cypher or '')
             m_until = re.search(r"created_at < '(\d{4}-\d{2}-\d{2}(?:T[^']+)?)'", cypher or '')
             norm = lambda s: s if 'T' in s else s + 'T00:00:00Z'
