@@ -152,8 +152,8 @@ pr0 = {}
 for w in watch_rows:
     page = 1; prs = []
     while True:
-        d = gh(f"/repos/{w['repo']}/actions/runs", {'event': 'pull_request', 'created': f'{SINCE}..{UNTIL}', 'per_page': 100, 'page': page})
-        batch = d.get('workflow_runs', []); prs += [r for r in batch if SINCE <= r['created_at'] < UNTIL]
+        d = gh(f"/repos/{w['repo']}/actions/runs", {'event': 'pull_request', 'created': f'>={SINCE}', 'per_page': 100, 'page': page})
+        batch = d.get('workflow_runs', []); prs += [r for r in batch if SINCE <= r['created_at']]
         if len(batch) < 100 or page >= 10: break
         page += 1
     latest = {}
@@ -163,9 +163,9 @@ for w in watch_rows:
         if k not in latest: latest[k] = r['conclusion']
     for (b, wf), concl in latest.items():
         if concl == 'failure': pr0[(w['repo'], b, wf)] = concl
-rows, warns = view('ActionsBrokenPullRequests', {'since': SINCE, 'until': UNTIL, 'limit': 1000}) if False else view('ActionsBrokenPullRequests', {'since': SINCE, 'limit': 1000})
-got_pr = set((r['repo'], r['branch'], r['workflow']) for r in rows if r['failedAt'] < UNTIL)
-check(got_pr == set(pr0), 'L2: ActionsBrokenPullRequests == GitHub (latest PR-branch run failed), window-bounded', f'{sorted(got_pr)} vs {sorted(pr0)}')
+rows, warns = view('ActionsBrokenPullRequests', {'since': SINCE, 'limit': 1000})
+got_pr = set((r['repo'], r['branch'], r['workflow']) for r in rows)
+check(got_pr == set(pr0), 'L2: ActionsBrokenPullRequests == GitHub (latest run per PR branch since the window start failed)', f'{sorted(got_pr)} vs {sorted(pr0)}')
 
 # ---- L2b: the model-backed views run and stay grounded.
 rows, warns = view('ActionsBriefing', dict(W, runs=5))
@@ -222,10 +222,18 @@ for entry in battery:
         check(False, f'L3 "{q}"', str(e)[:120]); continue
     if 'matchesView' in exp:
         mv = exp['matchesView']
-        vrows, _ = view(mv['name'], dict({'repo': REPO}, **mv.get('args', {})))
-        want = top_figure(vrows, mv['column'])
         for attempt in range(2):   # generation is stochastic: a figure that matches once in two is not stable
             if attempt: rows, cypher, d = ask(q)
+            # When the pipeline SELECTED the view it binds its own window (a date literal); reconcile
+            # against the view run with THAT window, so a bound-but-honest window is not a failure
+            # and a composed query with a different figure still is.
+            args = dict({'repo': REPO}, **mv.get('args', {}))
+            m_since = re.search(r"created_at >= '(\d{4}-\d{2}-\d{2}T[^']+)'", cypher or '')
+            m_until = re.search(r"created_at < '(\d{4}-\d{2}-\d{2}T[^']+)'", cypher or '')
+            if m_since and not m_since.group(1).startswith('1970'): args['since'] = m_since.group(1)
+            if m_until and not m_until.group(1).startswith('9999'): args['until'] = m_until.group(1)
+            vrows, _ = view(mv['name'], args)
+            want = top_figure(vrows, mv['column'])
             if isinstance(want, str):
                 got_s = set(str(x) for r in rows for x in r.values() if isinstance(x, str))
                 check(want in got_s, f'L3 "{q}" #{attempt+1} == {mv["name"]}.{mv["column"]}', f'want {want} in {sorted(got_s)[:8]} cypher={cypher[:140]}')

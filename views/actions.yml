@@ -31,9 +31,11 @@
 
 - name: ActionsRunCount
   description: >-
-    How many workflow runs a repository had in a window, how many completed, how many failed,
-    and the success rate. THE answer for "how many builds ran", "how many failed this week",
-    "what's our CI success rate". One row.
+    SELECT THIS for any COUNT or RATE over a repository's runs: "how many workflow runs did
+    owner/repo have in the last N days", "how many builds failed in owner/repo in the last N
+    days", "what is the CI success rate for owner/repo", "how many builds ran". One row: runs,
+    completed, succeeded, failed, cancelled, successRatePct. Do not compose these from the
+    runs; this view is the figure.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
     days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
@@ -82,9 +84,11 @@
 
 - name: ActionsWorkflowSummary
   description: >-
-    Per workflow, over a window: runs, failures, failure rate, average and longest run time in
-    minutes, and average queue time in seconds — worst failure rate first. THE answer for "how
-    are our builds doing", "which workflow fails most", "average build time", "CI health".
+    SELECT THIS for anything PER WORKFLOW: "which workflow in owner/repo fails most often",
+    "how are the builds doing in owner/repo", "average build time per workflow", "failure rate
+    by workflow", "CI health". One row per workflow over a window: runs, succeeded, failed,
+    cancelled, failureRatePct, avgRunMinutes, longestRunMinutes, avgQueueSeconds — worst
+    failure rate first, so the first row answers "fails most often".
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
     days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
@@ -113,9 +117,10 @@
 
 - name: ActionsSlowestRuns
   description: >-
-    The longest completed runs in a window, slowest first, with run time in minutes, queue time,
-    workflow, branch and link. "Slowest builds", "which build took longest", "long-running
-    workflows". Follow a runId into ActionsRunJobs to see which job took the time.
+    SELECT THIS for "which build in owner/repo took the longest in the last N days", "slowest
+    workflow runs in owner/repo", "slowest builds", "longest-running workflows": the longest
+    completed runs in a window, slowest first, with runSeconds and runMinutes, queue time,
+    workflow, branch and link. Follow a runId into ActionsRunJobs to see which job took the time.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
     days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
