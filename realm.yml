@@ -1,0 +1,29 @@
+name: github-actions
+description: |
+  Why was the build slow, and what keeps failing? GitHub Actions keeps every
+  run, job and step, and its own UI shows them one at a time. This realm reads
+  them as a graph off the repository you name: runs in a window with their
+  queue and run time, the jobs under the slowest and the failed ones, the step
+  that broke, and the annotations GitHub attached. On top of the exact figures
+  it composes the readings the Actions tab cannot: the recurring failure
+  themes, the jobs that pass on retry, and the paragraph to take into a
+  standup.
+
+  One source: the GitHub REST API, read-only, with a token that can read
+  Actions on the repositories you ask about. Public repositories work with any
+  token; private ones need a token granted on them.
+
+  Pin a repository as GitHubRepository {full_name:'owner/repo'} and traverse.
+  The anchor is the same label realm-github uses, so a world with both installed
+  sees issues and workflow runs on one node.
+version: 0.1.0
+host: wasm
+author: Rod Johnson
+url: https://github.com/embabel-worlds/realm-github-actions
+tags:
+  - github
+  - ci
+  - developer-tools
+  - openapi
+  - apps
+  - handlers

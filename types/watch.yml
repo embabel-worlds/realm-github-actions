@@ -1,0 +1,14 @@
+# The watchlist: the repositories this world follows. The one stored type in the realm.
+# Everything else is fetched off a literal-pinned GitHubRepository; this type exists so a
+# query can sweep EVERY followed repository at once (WorkflowRun has a door off it), so the
+# app can offer a picker instead of a blank box, and so the scheduled watch, which has no
+# parameters, knows where to look.
+- name: ActionsWatch
+  description: "A repository this world follows. Add one with gateway.repository.createEntry({ type: 'ActionsWatch', data: { full_name: 'owner/repo', branch: 'main' } }) — the CI Health app does this from its picker. Traverse HAS_WORKFLOW_RUN from it for the repository's recent runs; the fleet views (ActionsBrokenMains, ActionsBrokenPullRequests) sweep every watch."
+  properties:
+    full_name:
+      description: "Repository as owner/repo. Identity."
+      metadata:
+        identity: "true"
+    branch: "The branch whose runs the watch reports on. Default main."
+    note: "Why you watch it — the product it builds, who to tell."

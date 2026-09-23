@@ -1,0 +1,72 @@
+# The fleet: views that sweep EVERY followed repository (the ActionsWatch watchlist) in one
+# query, through WorkflowRun's second door. Each costs one or two GitHub calls per followed
+# repository when `since` is given (pushed down); without it, up to ten per repository.
+
+- name: ActionsWatchlist
+  description: >-
+    The repositories this world follows — the watchlist behind the fleet views and the app's
+    picker. "Which repos are we following", "what repositories are watched". Add one with
+    gateway.repository.createEntry on ActionsWatch, or from the CI Health app.
+  cypher: |
+    MATCH (w:ActionsWatch)
+    RETURN w.id AS id, w.full_name AS repo, coalesce(w.branch, 'main') AS branch, w.note AS note
+    ORDER BY w.full_name ASC
+
+- name: ActionsBrokenMains
+  description: >-
+    Across every followed repository: is its watched branch (main, by default) red right now?
+    For each repository, each workflow's LATEST completed run on that branch — the ones whose
+    latest run failed are the broken mains. THE answer for "which mains are broken", "which
+    repos are red", "is main green everywhere", "fleet CI status". One row per repository
+    and workflow whose latest run is not a success; `all` = every workflow, green ones too.
+  params:
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at — pushed to GitHub. Pass it; a branch with no run since it shows as 'no run'." }
+    days:  { type: int, default: 14, description: "Window in days ending now, applied in the graph when since is left at its default." }
+    all:   { type: boolean, default: false, description: "true = include workflows whose latest run succeeded." }
+  cypher: |
+    MATCH (w:ActionsWatch)-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
+    WHERE run.created_at >= $since
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND run.head_branch = coalesce(w.branch, 'main')
+      AND run.status = 'completed'
+    WITH w, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run
+    ORDER BY run.created_at DESC
+    WITH w, workflow, collect(run) AS runs
+    WITH w, workflow, runs[0] AS latest,
+         [x IN runs WHERE x.conclusion = 'success'][0] AS lastGreen,
+         size([x IN runs WHERE x.conclusion = 'failure']) AS failuresInWindow
+    WHERE $all OR latest.conclusion <> 'success'
+    RETURN w.full_name AS repo, coalesce(w.branch, 'main') AS branch, workflow,
+           latest.conclusion AS latestConclusion, latest.created_at AS latestAt,
+           latest.display_title AS latestTitle, latest.actor AS latestActor, latest.html_url AS latestUrl,
+           CASE WHEN lastGreen IS NULL THEN null ELSE lastGreen.created_at END AS lastGreenAt,
+           failuresInWindow
+    ORDER BY CASE latest.conclusion WHEN 'failure' THEN 0 WHEN 'timed_out' THEN 1 WHEN 'cancelled' THEN 2 ELSE 3 END, repo ASC, workflow ASC
+
+- name: ActionsBrokenPullRequests
+  description: >-
+    Across every followed repository (or one, with repo): the pull-request branches whose
+    LATEST completed run failed — the PRs that are red right now, newest first, with the PR
+    title, branch, numbers where GitHub linked them, who pushed, and the run link. THE answer
+    for "which PRs are broken", "which pull requests are failing CI", "red PRs".
+  params:
+    repo:  { type: string, default: "", description: "Only this repository as owner/repo; empty = every followed repository." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at — pushed to GitHub. Pass it." }
+    days:  { type: int, default: 7, description: "Window in days ending now, applied in the graph when since is left at its default." }
+    limit: { type: int, default: 100, description: "Maximum rows." }
+  cypher: |
+    MATCH (w:ActionsWatch)-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
+    WHERE ($repo = '' OR w.full_name = $repo)
+      AND run.created_at >= $since
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND run.event = 'pull_request'
+      AND run.status = 'completed'
+    WITH w, run.head_branch AS branch, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run
+    ORDER BY run.created_at DESC
+    WITH w, branch, workflow, collect(run)[0] AS latest
+    WHERE latest.conclusion = 'failure'
+    RETURN w.full_name AS repo, branch, workflow, latest.display_title AS title,
+           coalesce(latest.pr_numbers, []) AS prNumbers, latest.actor AS actor,
+           latest.created_at AS failedAt, toInteger(latest.id) AS runId, latest.html_url AS url
+    ORDER BY failedAt DESC
+    LIMIT $limit

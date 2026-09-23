@@ -1,0 +1,186 @@
+# Virtual-join producers over the GitHub REST API (kind: remote). Every one is a GET.
+#
+# KEYS ARE PATH PARAMETERS. A repository key 'owner/repo' is split positionally by keyArgs
+# into the owner and repo path params (keySplit "/"), and echoKeyAs stamps it back onto each
+# record because the records do not carry it in a flat field. A run or job id is a single
+# path param. Path-param producers are structurally one key per call: batchSafe: false says
+# so, and the engine fetches one anchor per call.
+#
+# PAGING. GitHub pages by `page` and `per_page` (max 100), newest first. runsByRepo walks up
+# to 10 pages, so a busy repository's window is bounded at 1,000 runs and a deeper window is
+# reported PARTIAL rather than silently short.
+#
+# PUSHDOWN. A literal predicate on head_branch, event, actor or conclusion renders into the
+# endpoint's own query parameter so the fetch is scoped at GitHub. A created_at lower bound
+# renders into `created` as '>=DATE'. Views that take a relative window (`days`) filter in
+# the graph, because a producer argument is static and cannot say 'seven days before now'.
+#
+# Values arrive as strings. Views coerce.
+
+- name: runsByRepo
+  kind: remote
+  operation: actions/list-workflow-runs-for-repo
+  records: "$.workflow_runs[*]"
+  keyArgs: [owner, repo]
+  keySplit: "/"
+  echoKeyAs: repository
+  batchSafe: false
+  args:
+    per_page: 100
+  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 10 }
+  pushdown:
+    - { property: head_branch, op: EQUALS, argPath: branch, clause: "{value}" }
+    - { property: event, op: EQUALS, argPath: event, clause: "{value}" }
+    - { property: actor, op: EQUALS, argPath: actor, clause: "{value}" }
+    - { property: conclusion, op: EQUALS, argPath: status, clause: "{value}" }
+    - { property: created_at, op: GREATER_THAN_OR_EQUAL, argPath: created, clause: ">={value}" }
+  project:
+    id: id
+    name: name
+    workflow_id: workflow_id
+    path: path
+    display_title: display_title
+    head_branch: head_branch
+    head_sha: head_sha
+    event: event
+    status: status
+    conclusion: conclusion
+    run_number: run_number
+    run_attempt: run_attempt
+    created_at: created_at
+    run_started_at: run_started_at
+    updated_at: updated_at
+    html_url: html_url
+    actor: actor.login
+    pr_numbers: "pull_requests[*].number"
+    owner: repository.owner.login
+    repo: repository.name
+  cost: { bucket: github-core, rate: 5000/hour }
+  cache: { kind: ttl, seconds: 300, negativeTtlSeconds: 300 }
+
+# No pushdown: the workflows endpoint takes no filter, so a filtered question is answered by
+# the graph over the whole (small) collection.
+- name: workflowsByRepo
+  kind: remote
+  operation: actions/list-repo-workflows
+  records: "$.workflows[*]"
+  keyArgs: [owner, repo]
+  keySplit: "/"
+  echoKeyAs: repository
+  batchSafe: false
+  args:
+    per_page: 100
+  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 3 }
+  project:
+    id: id
+    name: name
+    path: path
+    state: state
+    html_url: html_url
+  cost: { bucket: github-core, rate: 5000/hour }
+  cache: { kind: ttl, seconds: 3600, negativeTtlSeconds: 600 }
+
+# Jobs of ONE run, every attempt (filter=all), so a retry shows as the same job name twice
+# with two conclusions. The endpoint wants owner, repo AND run_id and a job record carries
+# none of the three flat, so the WorkflowJob join composes the run's owner, repo and id into
+# ONE key per run (producerKeyFields); the engine splits that composite on its own separator
+# and the three parts land on the three path params in keyArgs order. echoKeyAs stamps the
+# composite back on each job as runKey — the join link, and the first part of the key the
+# job's annotations are then fetched by.
+- name: jobsByRun
+  kind: remote
+  operation: actions/list-jobs-for-workflow-run
+  records: "$.jobs[*]"
+  keyArgs: [owner, repo, run_id]
+  echoKeyAs: runKey
+  batchSafe: false
+  args:
+    filter: all
+    per_page: 100
+  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 3 }
+  project:
+    id: id
+    run_id: run_id
+    run_attempt: run_attempt
+    name: name
+    status: status
+    conclusion: conclusion
+    started_at: started_at
+    completed_at: completed_at
+    runner_name: runner_name
+    runner_group_name: runner_group_name
+    labels: "labels[*]"
+    workflow_name: workflow_name
+    head_branch: head_branch
+    html_url: html_url
+    step_names: "steps[*].name"
+    step_conclusions: "steps[*].conclusion"
+  cost: { bucket: github-core, rate: 5000/hour }
+  cache: { kind: ttl, seconds: 300, negativeTtlSeconds: 300 }
+
+# Annotations of ONE job. A job id IS its check-run id. The CheckAnnotation join composes the
+# job's runKey (itself owner+repo+run_id) with the job id, so the composite splits into four
+# parts: owner, repo, run_id, check_run_id. run_id is not a parameter this operation declares,
+# so it is named only to keep the split aligned and is never sent.
+- name: annotationsByJob
+  kind: remote
+  operation: checks/list-annotations
+  records: "$[*]"
+  keyArgs: [owner, repo, run_id, check_run_id]
+  echoKeyAs: jobKey
+  batchSafe: false
+  args:
+    per_page: 100
+  project:
+    annotation_level: annotation_level
+    title: title
+    message: message
+    path: path
+    start_line: start_line
+    raw_details: raw_details
+  cost: { bucket: github-core, rate: 5000/hour }
+  cache: { kind: ttl, seconds: 3600, negativeTtlSeconds: 600 }
+
+# THE HISTORY DOOR. Completed runs never change, so the last 31 days are read as CALENDAR
+# PERIODS: one call per day per repository (GitHub's `created` takes an exact date), and a
+# closed day is cached for the life of the process — only today refreshes on the TTL. A cold
+# read costs 31 small calls in parallel; every later read of any window costs at most one.
+# Every windowed analytic view (summary, trend, slowest, failures, flakiness, themes, briefing)
+# reads this door; the LIVE door above answers "right now" (recent runs, broken mains, PRs, a
+# run's jobs). Known edge, stated in the README: a run still in progress when its day closed,
+# or re-run days later, keeps the state it had when that day was last read.
+- name: runHistoryByRepo
+  kind: remote
+  operation: actions/list-workflow-runs-for-repo
+  records: "$.workflow_runs[*]"
+  keyArgs: [owner, repo]
+  keySplit: "/"
+  echoKeyAs: repository
+  batchSafe: false
+  args:
+    per_page: 100
+  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 5 }
+  periods: { param: created, unit: day, count: 31, lag: 0, stampAs: day }
+  project:
+    id: id
+    name: name
+    workflow_id: workflow_id
+    path: path
+    display_title: display_title
+    head_branch: head_branch
+    head_sha: head_sha
+    event: event
+    status: status
+    conclusion: conclusion
+    run_number: run_number
+    run_attempt: run_attempt
+    created_at: created_at
+    run_started_at: run_started_at
+    updated_at: updated_at
+    html_url: html_url
+    actor: actor.login
+    pr_numbers: "pull_requests[*].number"
+    owner: repository.owner.login
+    repo: repository.name
+  cost: { bucket: github-core, rate: 5000/hour }
+  cache: { kind: ttl, seconds: 300, negativeTtlSeconds: 300 }

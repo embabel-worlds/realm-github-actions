@@ -1,0 +1,68 @@
+# The natural-language battery — what a person will type at this realm, run through the ask
+# surface by tests/verify.sh. Money-style figures here are counts, rates and durations; each
+# asserts matchesView: the NL answer must carry the same figure as the curated view, so the
+# realm reconciles against itself and nothing rots. Every question that ever disappoints a
+# user becomes a permanent entry.
+#
+# `{repo}` is substituted by the harness (default embabel/embabel-agent); `{slowestRunId}` is
+# the id of the slowest completed run in the harness window, found from GitHub directly.
+#
+# expect forms: matchesView {name, column, args?} | nonEmpty: true | minRows: n
+# adversarial: true — the sources do not carry the answer. Asked three times; a response is
+# correct when it returns no rows, or its generated Cypher touches only declared properties.
+# A figure for a thing the realm does not hold is a fabrication and fails the run.
+
+- question: "how many workflow runs did {repo} have in the last 7 days"
+  expect: { matchesView: { name: ActionsRunCount, column: runs } }
+- question: "how many builds failed in {repo} in the last 7 days"
+  expect: { matchesView: { name: ActionsRunCount, column: failed } }
+- question: "what is the CI success rate for {repo} in the last 7 days"
+  expect: { matchesView: { name: ActionsRunCount, column: successRatePct } }
+- question: "which build in {repo} took the longest in the last 7 days"
+  expect: { matchesView: { name: ActionsSlowestRuns, column: runSeconds } }
+- question: "slowest workflow runs in {repo} in the last 7 days"
+  expect: { matchesView: { name: ActionsSlowestRuns, column: runSeconds } }
+- question: "which workflow in {repo} fails most often"
+  expect: { matchesView: { name: ActionsWorkflowSummary, column: failureRatePct } }
+- question: "how are the builds doing in {repo}"
+  expect: { nonEmpty: true }
+- question: "what failed in {repo} this week"
+  expect: { nonEmpty: true }
+- question: "show me the failed runs on main in {repo}"
+  expect: { minRows: 0 }   # honest empty when main is green; asserts the ask runs without error
+- question: "what workflows does {repo} have"
+  expect: { nonEmpty: true }
+- question: "why was run {slowestRunId} in {repo} slow"
+  expect: { nonEmpty: true }
+- question: "which job failed in run {slowestRunId} of {repo}"
+  expect: { minRows: 0 }   # the slowest run may have passed; the question must still run
+- question: "what keeps failing in {repo}"
+  expect: { nonEmpty: true }
+- question: "which runs in {repo} passed on retry in the last 30 days"
+  expect: { minRows: 0 }   # a repository with no re-runs is honestly empty
+- question: "builds per day in {repo} over the last two weeks"
+  expect: { nonEmpty: true }
+
+# The fleet — every followed repository at once.
+- question: "which repositories are we following"
+  expect: { matchesView: { name: ActionsWatchlist, column: repo } }
+- question: "which mains are broken"
+  expect: { minRows: 0 }   # honestly empty when every watched branch is green
+- question: "is main green on every repo we follow"
+  expect: { minRows: 0 }
+- question: "which PRs are broken across our repos"
+  expect: { minRows: 0 }
+
+# The adversarial half: not in the source.
+- question: "how much did {repo} spend on Actions minutes last month"
+  adversarial: true
+  expect: { minRows: 0 }
+- question: "which test class fails most often in {repo}"
+  adversarial: true
+  expect: { minRows: 0 }
+- question: "what is the code coverage of the latest build of {repo}"
+  adversarial: true
+  expect: { minRows: 0 }
+- question: "how many self-hosted runners does {repo} have online right now"
+  adversarial: true
+  expect: { minRows: 0 }

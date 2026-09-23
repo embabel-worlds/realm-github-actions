@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI Health</title>
+<meta name="application-name" content="CI Health">
+<meta name="description" content="Ask a repository's GitHub Actions anything — in words, or through the realm's saved views — over a live graph of its runs, jobs and failures. Every figure links back to GitHub.">
+<link rel="stylesheet" href="/api/v1/apps-runtime/v1/theme.css">
+<script src="/api/v1/apps-runtime/v1/embabel.js"></script>
+<script src="/api/v1/apps-runtime/gateway.js"></script>
+<script type="application/embabel-app+json">
+{"version":1,"name":"ci-health","title":"CI Health",
+ "description":"GitHub Actions CI for one repository over realm-github-actions: ask in words, run any of the realm's views with a generated form, and read the dashboard — health per workflow, trend, slowest and failed runs with their jobs, failing steps, flaky jobs, failure themes and a standup briefing. Every figure links back to GitHub.",
+ "requires":{"lenses":[],"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests"],"realms":["github-actions"],"namespaces":["repository"]},
+ "dependsOn":{"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests"],"realms":["github-actions"],"gateway":["kg","repository"]}}
+</script>
+<style>
+  :root{--bg:#0a0a0f;--surface:#13131a;--surface2:#171722;--border:#1e1e2e;--cyan:#63c0f5;--green:#3fd73c;--dim:#6b7280;
+        --text:#e5e7eb;--amber:#e8b64c;--red:#e2685f;--purple:#9f77cd;}
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;padding:0 0 64px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.5;}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 20px 8px;}
+  header{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 28px;}
+  header h1{margin:0;font-size:1.7rem;font-weight:400;letter-spacing:.02em;}
+  header p.sub{margin:4px 0 0;color:var(--dim);font-size:.86rem;max-width:64ch;}
+  .scope{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto;}
+  input,select,textarea{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:7px;font-family:inherit;font-size:.9rem;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);}
+  .scope input{min-width:230px;}
+  .btn{background:var(--cyan);border:1px solid var(--cyan);color:#06121c;padding:8px 14px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:.88rem;font-weight:500;white-space:nowrap;}
+  .btn.ghost{background:transparent;color:var(--dim);border-color:var(--border);} .btn.ghost:hover{color:var(--text);border-color:var(--cyan);}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .stamp{color:var(--dim);font-size:.76rem;}
+  .picker{position:relative;}
+  .btn.pick{color:var(--text);min-width:260px;text-align:left;display:flex;justify-content:space-between;gap:10px;}
+  .menu{position:absolute;top:calc(100% + 6px);left:0;z-index:50;min-width:360px;max-width:92vw;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.5);padding:8px;}
+  .menu[hidden]{display:none;}
+  .menu input{width:100%;margin-bottom:6px;}
+  .menu .opt{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:.86rem;}
+  .menu .opt:hover,.menu .opt[aria-selected="true"]{background:var(--surface2);}
+  .menu .opt .r{flex:1;} .menu .opt small{color:var(--dim);display:block;font-size:.74rem;}
+  .menu .opt .x{background:transparent;border:0;color:var(--dim);cursor:pointer;font-size:.9rem;padding:2px 6px;border-radius:5px;}
+  .menu .opt .x:hover{color:var(--red);background:#2a1a1a;}
+  .menu-foot{padding:6px 8px 2px;font-size:.78rem;color:var(--dim);border-top:1px solid var(--border);margin-top:4px;}
+  .menu-foot button{margin-left:6px;}
+  .fleet-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin:8px 0 14px;}
+  .repo-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:9px;padding:12px 14px;cursor:pointer;}
+  .repo-card.red{border-left-color:var(--red);} .repo-card.grey{border-left-color:var(--dim);}
+  .repo-card:hover{border-color:var(--cyan);}
+  .repo-card .name{font-weight:500;} .repo-card .st{color:var(--dim);font-size:.8rem;margin-top:3px;}
+  /* ask */
+  .ask{margin:22px 0 0;padding:16px 18px;background:linear-gradient(180deg,#14141c,#111118);border:1px solid var(--border);border-radius:12px;}
+  .ask .row{display:flex;gap:8px;}
+  .ask input{flex:1;font-size:1rem;padding:11px 14px;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .chip{background:transparent;border:1px solid var(--border);color:var(--dim);padding:4px 11px;border-radius:999px;cursor:pointer;font-size:.78rem;font-family:inherit;}
+  .chip:hover{color:var(--text);border-color:var(--purple);}
+  .answer{margin-top:14px;}
+  .meta{display:flex;flex-wrap:wrap;gap:14px;color:var(--dim);font-size:.78rem;margin:8px 0 4px;align-items:center;}
+  .meta a{cursor:pointer;}
+  details.cy{margin-top:6px;} details.cy summary{cursor:pointer;color:var(--dim);font-size:.8rem;}
+  pre.cy,#how pre{background:#0d0d14;border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:.78rem;overflow:auto;margin:6px 0 0;color:#c9d1d9;white-space:pre;}
+  /* verdict + tiles */
+  .verdict{margin:18px 0 0;padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--dim);border-radius:10px;}
+  .verdict.hot{border-left-color:var(--red);} .verdict.calm{border-left-color:var(--green);} .verdict.warm{border-left-color:var(--amber);}
+  .verdict .big{font-size:1.15rem;font-weight:500;} .verdict .why{color:var(--dim);font-size:.86rem;margin-top:4px;}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px;}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px 14px;}
+  .tile .n{font-size:1.6rem;font-weight:600;font-variant-numeric:tabular-nums;} .tile .l{color:var(--dim);font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;margin-top:2px;}
+  /* tabs */
+  nav{display:flex;flex-wrap:wrap;gap:6px;margin:22px 0 14px;}
+  nav button{background:transparent;border:1px solid var(--border);color:var(--dim);padding:7px 14px;border-radius:999px;cursor:pointer;font-size:.84rem;font-family:inherit;}
+  nav button:hover{color:var(--text);border-color:var(--cyan);} nav button[aria-selected="true"]{background:var(--cyan);border-color:var(--cyan);color:#06121c;}
+  section.panel{display:none;} section.panel.on{display:block;}
+  h3.t{font-weight:500;font-size:1rem;margin:16px 0 8px;} h3.t:first-child{margin-top:4px;}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  th{text-align:left;color:var(--dim);font-weight:500;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top;max-width:420px;overflow-wrap:anywhere;}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  tr.pick{cursor:pointer;} tr.pick:hover td{background:var(--surface2);}
+  .tablewrap{overflow:auto;border:1px solid var(--border);border-radius:9px;}
+  a{color:var(--cyan);text-decoration:none;} a:hover{text-decoration:underline;}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.72rem;border:1px solid var(--border);color:var(--dim);white-space:nowrap;}
+  .pill.success{color:var(--green);border-color:#1f4d1e;} .pill.failure{color:var(--red);border-color:#5a2a26;} .pill.cancelled,.pill.skipped,.pill.timed_out{color:var(--amber);border-color:#5a4a20;}
+  .note{margin:10px 0;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:8px;font-size:.84rem;}
+  .note.bad{border-left-color:var(--red);}
+  .empty{padding:16px;color:var(--dim);font-size:.88rem;border:1px dashed var(--border);border-radius:8px;}
+  .muted{color:var(--dim);font-size:.82rem;}
+  .bars{display:grid;grid-template-columns:100px 1fr 80px 60px;gap:6px 12px;align-items:center;font-size:.84rem;}
+  .bar{height:14px;background:#1e1e2e;border-radius:3px;overflow:hidden;display:flex;} .bar .ok{background:var(--green);} .bar .ko{background:var(--red);} .bar .oth{background:#3a3a4a;}
+  .bar div{height:100%;}
+  .prose{white-space:pre-wrap;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:16px 18px;font-size:.95rem;margin-top:10px;}
+  .drawer{margin-top:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:9px;}
+  .drawer h3{margin:0 0 8px;font-size:1rem;font-weight:500;}
+  /* explorer */
+  .explore{display:grid;grid-template-columns:300px 1fr;gap:16px;} @media (max-width:820px){.explore{grid-template-columns:1fr;}}
+  .vlist{display:flex;flex-direction:column;gap:4px;}
+  .vlist button{text-align:left;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.84rem;}
+  .vlist button:hover{border-color:var(--cyan);} .vlist button[aria-selected="true"]{border-color:var(--cyan);background:#14202b;}
+  .vlist button small{display:block;color:var(--dim);font-size:.74rem;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .vlist button.ai::after{content:" · model";color:var(--purple);font-size:.72rem;}
+  .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0;}
+  .form label{display:block;font-size:.74rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+  .form input{width:100%;}
+  .form .hint{font-size:.74rem;color:var(--dim);margin-top:3px;}
+  footer{margin-top:34px;color:var(--dim);font-size:.8rem;} footer a{color:var(--dim);}
+  #how{display:none;margin-top:14px;} #how:target,#how.on{display:block;}
+  #how h2{font-size:1.1rem;font-weight:500;margin:20px 0 6px;} #how h3{font-size:.92rem;margin:14px 0 4px;font-weight:500;}
+  #how ul{padding-left:20px;} #how li{margin:3px 0;} #how p,#how li{font-size:.9rem;}
+  #how .view{margin:10px 0 16px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);}
+  #how .view code{color:var(--cyan);}
+  embabel-operation-state{display:block;margin:6px 0;font-size:.8rem;color:var(--dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>CI Health</h1>
+    <p class="sub">A repository's GitHub Actions read live as a graph. Ask in words, run any view, or read the dashboard — every figure links back to the run on GitHub.</p>
+  </div>
+  <div class="scope">
+    <div class="picker" id="picker">
+      <button class="btn ghost pick" id="repoBtn" aria-haspopup="listbox" aria-expanded="false"><span id="repoLabel">Pick a repository</span> ▾</button>
+      <div class="menu" id="repoMenu" role="listbox" hidden>
+        <input id="repoFilter" placeholder="filter, or type owner/repo to follow it" aria-label="Filter the repositories you follow">
+        <div id="repoList"></div>
+        <div class="menu-foot" id="repoFoot"></div>
+      </div>
+    </div>
+    <select id="days" aria-label="Window"><option value="7">last 7 days</option><option value="14">last 14 days</option><option value="30">last 30 days</option></select>
+    <button class="btn" id="go">Read</button>
+    <span class="stamp" id="stamp"></span>
+  </div>
+</header>
+<embabel-operation-state id="state"></embabel-operation-state>
+
+<div class="ask">
+  <div class="row"><input id="q" placeholder="Ask about this repository's CI in your own words… e.g. which build took the longest in the last 7 days" aria-label="Question"><button class="btn" id="askGo">Ask</button></div>
+  <div class="chips" id="chips"></div>
+  <div class="answer" id="answer"></div>
+</div>
+
+<div class="verdict" id="verdict"><div class="big">Reading…</div><div class="why">Runs are fetched from GitHub at query time; nothing is mirrored.</div></div>
+<div class="tiles" id="tiles"></div>
+
+<nav role="tablist">
+  <button role="tab" data-tab="fleet">Fleet</button>
+  <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
+  <button role="tab" data-tab="runs">Runs</button>
+  <button role="tab" data-tab="failures">Failures</button>
+  <button role="tab" data-tab="flaky">Flaky</button>
+  <button role="tab" data-tab="insight">Reading</button>
+  <button role="tab" data-tab="views">Views</button>
+</nav>
+
+<section class="panel" id="p-fleet"></section>
+<section class="panel on" id="p-overview"></section>
+<section class="panel" id="p-runs"></section>
+<section class="panel" id="p-failures"></section>
+<section class="panel" id="p-flaky"></section>
+<section class="panel" id="p-insight">
+  <h3 class="t">Why the builds fail</h3>
+  <p class="muted">Opens the failed jobs of the newest failed runs and GitHub's failure annotations, then asks a model to name the recurring causes. One model call; the counts are under Failures.</p>
+  <button class="btn" id="themesGo">Name the causes</button><div id="themesOut"></div>
+  <h3 class="t">The standup briefing</h3>
+  <p class="muted">The per-workflow summary and the failing steps, composed into a paragraph with the instruction to use only those facts. One model call.</p>
+  <button class="btn" id="briefGo">Compose the briefing</button><div id="briefOut"></div>
+</section>
+<section class="panel" id="p-views">
+  <p class="muted">Every saved view the realm ships, read from the world's contracts at load. Pick one, set its parameters, run it, and see the exact Cypher that ran.</p>
+  <div class="explore"><div class="vlist" id="vlist"></div><div id="vpane"><div class="empty">Pick a view.</div></div></div>
+</section>
+
+<div class="drawer" id="drawer" style="display:none"></div>
+
+<footer>Served by an Embabel world through <strong>realm-github-actions</strong>. Read-only: nothing here can re-run, cancel or dispatch anything. · <a href="#how" id="howLink">How it works</a></footer>
+
+<div id="how">
+  <h2>How it works</h2>
+  <p class="muted">Every number on this page is the result of a saved view on the world, run by name with the parameters you set. This page renders rows; the view's Cypher is what runs.</p>
+
+  <h3>1. The data</h3>
+  <p>All of it comes from <strong>realm-github-actions</strong>, reading the GitHub REST API with a token that can read Actions on the repository. Nothing is mirrored: a view pins the repository by name, the engine fetches from GitHub for that query, materialises transient nodes, runs the Cypher, and rolls them back.</p>
+  <pre>(ActionsWatch {full_name, branch})        the watchlist — the one STORED type; the picker and the fleet read it
+   -[:HAS_WORKFLOW_RUN]->  (WorkflowRun)    the same live door, off every followed repository at once
+
+(GitHubRepository {full_name})            the door — pinned by 'owner/repo'; the same label realm-github anchors issues on
+   -[:HAS_WORKFLOW]->      (Workflow)       GET /repos/{o}/{r}/actions/workflows                        cached 1 h
+   -[:HAS_WORKFLOW_RUN]->  (WorkflowRun)    LIVE: GET .../actions/runs?created=>=since, newest first    cached 5 min
+   -[:HAS_RUN_HISTORY]->   (WorkflowRun)    HISTORY: one GET per calendar day, 31 days                  closed days cached for the life of the process
+         -[:HAS_JOB]->            (WorkflowJob)     GET .../runs/{id}/jobs?filter=all, one call per run   cached 5 min
+               -[:HAS_ANNOTATION]->  (CheckAnnotation) GET .../check-runs/{job}/annotations, one call per job   cached 1 h</pre>
+  <ul>
+    <li><strong>Two doors to the same runs.</strong> Completed runs never change, so the windowed panels (overview, runs, failures, flaky, reading) read <em>history</em>: the last 31 days as calendar periods, one GitHub call per day, and a closed day is cached for the life of the process. The first read of a repository costs about 31 small calls; every later read of any window costs at most one (today's slice, after five minutes). The "right now" panels — the fleet's broken mains and PRs, and a run's jobs — read <em>live</em>, with the window pushed down to GitHub's <code>created</code> filter.</li>
+    <li><strong>Freshness.</strong> Live runs and jobs are re-read after five minutes; workflows and annotations after an hour; today's history slice after five minutes; a closed day never, until the appliance restarts. A figure that disagrees with GitHub inside those windows is the cache, not a bug; the engine reports when each producer was actually read. Known edge: a run still in progress when its day closed, or re-run days later, keeps in history the state it had when that day was last read.</li>
+    <li><strong>The fleet.</strong> "Broken mains" is, per followed repository and workflow, the latest completed run on the watched branch; "broken PRs" is, per pull-request branch, the latest completed run. Both sweep every followed repository in one query through the watchlist's door.</li>
+    <li><strong>Run time</strong> is <code>updated_at − run_started_at</code> on a completed run; <strong>queue time</strong> is <code>run_started_at − created_at</code>. Values arrive from GitHub as strings; the views coerce.</li>
+    <li><strong>The daily watch</strong> (<code>ciWatch</code> in the realm's handlers) runs at 08:00 on weekdays once an operator adopts it, over the repositories seeded as <code>ActionsWatch</code>. It is not what this page reads.</li>
+  </ul>
+
+  <h3>2. The questions</h3>
+  <p class="muted">Every view this page can call, with its parameters and defaults, and the Cypher the server reports it would run for the current scope — read back live when you open this section, never copied.</p>
+  <div id="howViews"><div class="muted">Open this section to read the views back from the server.</div></div>
+
+  <h3>3. When it looks wrong</h3>
+  <ul>
+    <li><strong>Failed runs, failing steps, causes are empty:</strong> no run in the window concluded failure. Green, not broken.</li>
+    <li><strong>Flaky is empty:</strong> nothing was re-run to success in the last 30 days, so no job could both fail and pass.</li>
+    <li><strong>A red notice</strong> is the lookup failing: a token without access, a repository that does not exist, GitHub unreachable. It is never shown as a zero.</li>
+    <li><strong>Partial answer:</strong> the engine hit the page cap and GitHub had more. Choose a dated window and the fetch is scoped at the source.</li>
+    <li><strong>An answer to a question that has different figures from a tile:</strong> the question was composed by the generator with its own window ("this week" may mean since Monday). Open <em>what ran</em> under the answer and compare the WHERE clause; ask with "in the last 7 days" to get the view's own window.</li>
+    <li><strong>A run's jobs are empty</strong> for a run older than the last 1,000: the lookup needs the run's date. Click the run in a table here and the date travels with it.</li>
+    <li><strong>The fleet says "no run in 14 days"</strong> for a repository whose watched branch is not <code>main</code>: unfollow and follow it again with the right branch (the picker follows on <code>main</code>; the watch's <code>branch</code> field can be edited through the world's repository).</li>
+    <li><strong>Following fails</strong> outside the console: the picker writes the watchlist through the world gateway, which needs a signed-in session on the same origin.</li>
+    <li>Deeper diagnosis: the realm ships <code>tests/verify.sh</code>, which reconciles every figure here against GitHub's API directly, and <code>scripts/test-views.py</code>.</li>
+  </ul>
+
+  <h3>4. What made this possible</h3>
+  <ul>
+    <li>Three GitHub endpoints joined as one graph with no ETL, no schedule and no copy: the joins are declared in the realm's types, and the fetch happens per query. A conventional stack mirrors runs into a database on a schedule and answers from the copy.</li>
+    <li>The judgment sits beside the figure: <code>themes()</code> and <code>synthesize()</code> run inside the same query that produced the counts (see the Cypher above), so the prose cannot drift from the table. Conventionally that is a separate pipeline with its own staleness.</li>
+    <li>The same views answer this page, a question typed in words (the ask bar selects a view when one claims the question, and shows the Cypher either way), and the world's SQL and OData doors. One definition, validated when saved.</li>
+    <li>There is no backend for this page to deploy or patch: it asks the world by view name at load.</li>
+  </ul>
+</div>
+</div>
+
+<div id="embabel-badge" style="position:fixed;bottom:0;left:0;right:0;text-align:center;padding:6px 0;background:rgba(10,10,15,0.9);border-top:1px solid rgba(99,192,245,0.2);font-size:0.75rem;color:#6b7280;z-index:9999;pointer-events:none;">
+  Created with <a href="https://worlds.embabel.com" target="_blank" rel="noopener noreferrer" style="color:#63c0f5;text-decoration:none;pointer-events:auto;">Embabel Worlds</a>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var stateEl = $('state');
+  var REALM = 'github-actions';
+  var AI_VIEWS = { ActionsFailureThemes: 1, ActionsBriefing: 1 };
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>'"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]; }); }
+  function rowsOf(r) { if (!r) return []; if (Array.isArray(r)) return r; if (Array.isArray(r.rows)) return r.rows; if (r.data && Array.isArray(r.data.rows)) return r.data.rows; if (Array.isArray(r.data)) return r.data; return []; }
+  function warningsOf(r) { if (!r) return []; if (Array.isArray(r.warnings)) return r.warnings; if (r.data && Array.isArray(r.data.warnings)) return r.data.warnings; return []; }
+  function iso(ms) { return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z'); }
+  function ctx() { var days = Number($('days').value) || 7; return { repo: currentRepo, days: days, since: iso(Date.now() - days * 86400000) }; }
+  var cache = {};
+  function load(name, params) {
+    var key = name + JSON.stringify(params);
+    if (cache[key]) return cache[key];
+    var p = embabel.views.invoke(name, params, { state: stateEl }).then(function (res) { return { rows: rowsOf(res), warnings: warningsOf(res) }; })
+      .catch(function (e) { delete cache[key]; throw e; });
+    cache[key] = p; return p;
+  }
+  function failure(el, e) { el.innerHTML = '<div class="note bad"><strong>The repository could not be read.</strong> ' + esc(e && e.message ? e.message : String(e)) + ' — this is the lookup failing, not a green repository.</div>'; }
+  function warnBlock(w) { if (!w || !w.length) return ''; return '<div class="note"><strong>Partial answer.</strong> ' + w.map(function (x) { return esc(String(x).slice(0, 220)); }).join('<br>') + '</div>'; }
+  function empty(text) { return '<div class="empty">' + esc(text) + '</div>'; }
+  function pill(c) { c = c || 'in progress'; return '<span class="pill ' + esc(c) + '">' + esc(c) + '</span>'; }
+  function link(url, text) { return '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(text) + '</a>'; }
+  function cell(v) {
+    if (v == null) return '<span class="muted">—</span>';
+    if (Array.isArray(v)) return v.map(function (x) { return /^https?:\/\//.test(String(x)) ? link(x, String(x).replace(/^https:\/\/github\.com\//, '')) : esc(x); }).join('<br>');
+    if (typeof v === 'object') return '<code>' + esc(JSON.stringify(v)) + '</code>';
+    if (/^https?:\/\//.test(String(v))) return link(v, 'open');
+    if (typeof v === 'string' && /^(success|failure|cancelled|skipped|timed_out|in_progress|queued|completed)$/.test(v)) return pill(v);
+    return esc(v);
+  }
+  function grid(rows) {
+    if (!rows.length) return '';
+    var cols = []; rows.forEach(function (r) { Object.keys(r).forEach(function (k) { if (cols.indexOf(k) < 0) cols.push(k); }); });
+    return '<div class="tablewrap"><table><thead><tr>' + cols.map(function (c) { return '<th class="' + (typeof rows[0][c] === 'number' ? 'num' : '') + '">' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr>' + cols.map(function (c) { return '<td class="' + (typeof r[c] === 'number' ? 'num' : '') + '">' + cell(r[c]) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+  }
+  function stamp() { $('stamp').textContent = 'read at ' + new Date().toLocaleTimeString(); }
+
+  /* ── the repositories you follow: the picker, and the fleet ── */
+  var watchlist = [], currentRepo = '';
+  function setRepo(name) { currentRepo = name; $('repoLabel').textContent = name || 'Pick a repository'; try { localStorage.setItem('ci-health.repo', name); } catch (e) {} }
+  function loadWatchlist(force) {
+    if (force) Object.keys(cache).forEach(function (k) { if (k.indexOf('ActionsWatchlist') === 0) delete cache[k]; });
+    return load('ActionsWatchlist', {}).then(function (r) { watchlist = r.rows; renderRepoList(); return watchlist; });
+  }
+  function renderRepoList() {
+    var f = $('repoFilter').value.trim().toLowerCase();
+    var shown = watchlist.filter(function (w) { return !f || String(w.repo).toLowerCase().indexOf(f) >= 0 || String(w.note || '').toLowerCase().indexOf(f) >= 0; });
+    $('repoList').innerHTML = shown.length ? shown.map(function (w) { return '<div class="opt" role="option" data-repo="' + esc(w.repo) + '" aria-selected="' + (w.repo === currentRepo) + '"><span class="r">' + esc(w.repo) + '<small>' + esc(w.branch) + (w.note ? ' · ' + esc(w.note) : '') + '</small></span><button class="x" type="button" title="Unfollow" data-unfollow="' + esc(w.id) + '" data-repo="' + esc(w.repo) + '">✕</button></div>'; }).join('')
+      : '<div class="muted" style="padding:8px">' + (watchlist.length ? 'No followed repository matches.' : 'Nothing followed yet.') + '</div>';
+    var isRepo = /^[\w.-]+\/[\w.-]+$/.test($('repoFilter').value.trim()), known = watchlist.some(function (w) { return w.repo === $('repoFilter').value.trim(); });
+    $('repoFoot').innerHTML = isRepo && !known ? '<span>Not followed yet.</span><button class="btn" style="padding:4px 10px;font-size:.78rem" id="followBtn" data-repo="' + esc($('repoFilter').value.trim()) + '">Follow ' + esc($('repoFilter').value.trim()) + '</button> <button class="btn ghost" style="padding:4px 10px;font-size:.78rem" id="onceBtn" data-repo="' + esc($('repoFilter').value.trim()) + '">Just look</button>'
+      : '<span>' + watchlist.length + ' followed · type owner/repo to follow another</span>';
+    $('repoList').querySelectorAll('.opt').forEach(function (o) { o.addEventListener('click', function (ev) { if (ev.target.closest('[data-unfollow]')) return; choose(o.dataset.repo); }); });
+    $('repoList').querySelectorAll('[data-unfollow]').forEach(function (b) { b.addEventListener('click', function (ev) { ev.stopPropagation(); unfollow(b.dataset.unfollow, b.dataset.repo); }); });
+    var fb = $('followBtn'); if (fb) fb.addEventListener('click', function () { follow(fb.dataset.repo); });
+    var ob = $('onceBtn'); if (ob) ob.addEventListener('click', function () { choose(ob.dataset.repo); });
+  }
+  function openMenu(open) { $('repoMenu').hidden = !open; $('repoBtn').setAttribute('aria-expanded', String(open)); if (open) { $('repoFilter').value = ''; renderRepoList(); $('repoFilter').focus(); } }
+  function choose(name) { setRepo(name); openMenu(false); readAll(); }
+  function follow(name) {
+    if (!window.gateway || !gateway.repository) { $('repoFoot').innerHTML = '<span class="muted">Following needs the world gateway; open this app inside the console.</span>'; return; }
+    $('repoFoot').innerHTML = '<span>Following ' + esc(name) + '…</span>';
+    gateway.repository.createEntry({ type: 'ActionsWatch', data: { full_name: name, branch: 'main', note: '' } })
+      .then(function () { return loadWatchlist(true); }).then(function () { choose(name); fleet(ctx(), true); })
+      .catch(function (e) { $('repoFoot').innerHTML = '<span style="color:var(--red)">Could not follow: ' + esc(e && e.message || e) + '</span>'; });
+  }
+  function unfollow(id, name) {
+    if (!window.gateway || !gateway.repository) return;
+    gateway.repository.deleteEntry({ type: 'ActionsWatch', id: id }).then(function () { return loadWatchlist(true); })
+      .then(function () { if (currentRepo === name) { setRepo(watchlist.length ? watchlist[0].repo : ''); readAll(); } else fleet(ctx(), true); })
+      .catch(function (e) { $('repoFoot').innerHTML = '<span style="color:var(--red)">Could not unfollow: ' + esc(e && e.message || e) + '</span>'; });
+  }
+  $('repoBtn').addEventListener('click', function () { openMenu($('repoMenu').hidden); });
+  $('repoFilter').addEventListener('input', renderRepoList);
+  $('repoFilter').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { var v = $('repoFilter').value.trim(); var hit = watchlist.filter(function (w) { return String(w.repo).toLowerCase().indexOf(v.toLowerCase()) >= 0; }); if (hit.length === 1) choose(hit[0].repo); else if (/^[\w.-]+\/[\w.-]+$/.test(v)) choose(v); } if (ev.key === 'Escape') openMenu(false); });
+  document.addEventListener('click', function (ev) { if (!ev.target.closest('#picker')) openMenu(false); });
+
+  function fleet(c, force) {
+    var el = $('p-fleet'); var since14 = iso(Date.now() - 14 * 86400000);
+    if (force) Object.keys(cache).forEach(function (k) { if (/^ActionsBroken/.test(k)) delete cache[k]; });
+    el.innerHTML = '<div class="muted">Reading the latest run of every workflow on every followed repository…</div>';
+    Promise.all([loadWatchlist(false), load('ActionsBrokenMains', { since: since14, all: true }), load('ActionsBrokenPullRequests', { since: c.since, limit: 100 })]).then(function (r) {
+      var mains = r[1].rows, prs = r[2].rows;
+      var byRepo = {}; watchlist.forEach(function (w) { byRepo[w.repo] = { repo: w.repo, branch: w.branch, red: [], green: 0, prs: 0 }; });
+      mains.forEach(function (m) { var b = byRepo[m.repo] || (byRepo[m.repo] = { repo: m.repo, branch: m.branch, red: [], green: 0, prs: 0 }); if (m.latestConclusion === 'success') b.green++; else b.red.push(m); });
+      prs.forEach(function (p) { if (byRepo[p.repo]) byRepo[p.repo].prs++; });
+      var cards = Object.keys(byRepo).sort().map(function (k) { var b = byRepo[k]; var cls = b.red.length ? 'red' : (b.green ? '' : 'grey');
+        return '<div class="repo-card ' + cls + '" data-fleet-repo="' + esc(b.repo) + '"><div class="name">' + esc(b.repo) + ' <span class="muted">@' + esc(b.branch) + '</span></div><div class="st">' + (b.red.length ? '<span style="color:var(--red)">' + b.red.length + ' workflow' + (b.red.length > 1 ? 's' : '') + ' red</span>' : b.green ? '<span style="color:var(--green)">green</span>' : 'no run in 14 days') + ' · ' + b.green + ' green · ' + b.prs + ' red PR' + (b.prs === 1 ? '' : 's') + '</div></div>'; }).join('');
+      var redRows = mains.filter(function (m) { return m.latestConclusion !== 'success'; });
+      el.innerHTML = '<h3 class="t">The repositories you follow</h3>' + (cards ? '<div class="fleet-grid">' + cards + '</div>' : empty('Nothing followed yet. Open the picker and type owner/repo to follow a repository.')) +
+        '<h3 class="t">Broken mains — the latest completed run on the watched branch is not a success</h3>' + warnBlock(r[1].warnings) +
+        (redRows.length ? '<div class="tablewrap"><table><thead><tr><th>Repository</th><th>Workflow</th><th>Latest</th><th>Title</th><th>By</th><th>When</th><th>Last green</th><th class="num">Failures, 14 d</th><th></th></tr></thead><tbody>' +
+          redRows.map(function (m) { return '<tr data-broken-main><td>' + esc(m.repo) + ' <span class="muted">@' + esc(m.branch) + '</span></td><td>' + esc(m.workflow) + '</td><td>' + pill(m.latestConclusion) + '</td><td>' + esc(m.latestTitle) + '</td><td>' + esc(m.latestActor) + '</td><td class="muted">' + esc(String(m.latestAt).replace('T', ' ').replace('Z', '')) + '</td><td class="muted">' + (m.lastGreenAt ? esc(String(m.lastGreenAt).slice(0, 10)) : 'never in window') + '</td><td class="num">' + m.failuresInWindow + '</td><td>' + link(m.latestUrl, 'run') + '</td></tr>'; }).join('') + '</tbody></table></div>'
+          : (mains.length ? '<div class="empty" style="border-color:#1f4d1e;color:var(--green)">Every workflow on every watched branch is green on its latest run.</div>' : empty('No completed run on a watched branch in the last 14 days.'))) +
+        '<h3 class="t">Broken pull requests — PR branches whose latest run failed, last ' + c.days + ' days</h3>' + warnBlock(r[2].warnings) +
+        (prs.length ? '<div class="tablewrap"><table><thead><tr><th>Repository</th><th>PR</th><th>Branch</th><th>Workflow</th><th>By</th><th>Failed</th><th></th></tr></thead><tbody>' +
+          prs.map(function (p) { return '<tr data-broken-pr><td>' + esc(p.repo) + '</td><td>' + esc(p.title) + (p.prNumbers && p.prNumbers.length ? ' <span class="muted">#' + p.prNumbers.join(', #') + '</span>' : '') + '</td><td>' + esc(p.branch) + '</td><td>' + esc(p.workflow) + '</td><td>' + esc(p.actor) + '</td><td class="muted">' + esc(String(p.failedAt).replace('T', ' ').replace('Z', '')) + '</td><td>' + link(p.url, 'run') + '</td></tr>'; }).join('') + '</tbody></table></div>'
+          : '<div class="empty" style="border-color:#1f4d1e;color:var(--green)">No pull-request branch is red across the repositories you follow.</div>');
+      el.querySelectorAll('[data-fleet-repo]').forEach(function (card) { card.addEventListener('click', function () { choose(card.dataset.fleetRepo); showTab('overview'); }); });
+    }).catch(function (e) { failure(el, e); });
+  }
+
+  /* ── tabs ── */
+  function showTab(name) {
+    document.querySelectorAll('nav [role=tab]').forEach(function (x) { x.setAttribute('aria-selected', x.dataset.tab === name ? 'true' : 'false'); });
+    document.querySelectorAll('section.panel').forEach(function (s) { s.classList.toggle('on', s.id === 'p-' + name); });
+    try { localStorage.setItem('ci-health.tab', name); } catch (e) {}
+    if (name === 'views') explorer();
+  }
+  document.querySelectorAll('nav [role=tab]').forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
+  $('howLink').addEventListener('click', function () { $('how').classList.add('on'); howViews(); });
+  if (location.hash === '#how') { $('how').classList.add('on'); setTimeout(howViews, 0); }
+
+  /* ── ask in words ── */
+  var EXAMPLES = ['how are the builds doing in {repo}', 'which build in {repo} took the longest in the last 7 days', 'what failed in {repo} in the last 7 days',
+    'what keeps failing in {repo}', 'which workflow in {repo} fails most often', 'which runs in {repo} passed on retry in the last 30 days', 'builds per day in {repo} over the last two weeks'];
+  function chips() { var c = ctx(); $('chips').innerHTML = EXAMPLES.map(function (q) { return '<button class="chip" type="button">' + esc(q.replace('{repo}', c.repo)) + '</button>'; }).join('');
+    $('chips').querySelectorAll('.chip').forEach(function (b) { b.addEventListener('click', function () { $('q').value = b.textContent; ask(); }); }); }
+  function ask() {
+    var q = $('q').value.trim(); if (!q) return;
+    var out = $('answer'); out.innerHTML = '<div class="muted">Asking the world… the question is turned into a query over the realm, or routed to a view that claims it.</div>';
+    $('askGo').disabled = true;
+    fetch('/api/v1/admin/kg/ask', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) })
+      .then(function (r) { if (!r.ok) throw new Error(r.status === 401 ? 'Your session has expired; sign in again.' : 'The world could not answer (' + r.status + ').'); return r.json(); })
+      .then(function (d) {
+        var rows = rowsOf(d), w = warningsOf(d);
+        var html = '';
+        if (d.error) html += '<div class="note bad"><strong>The question could not be answered.</strong> ' + esc(d.error) + '</div>';
+        html += rows.length ? grid(rows.slice(0, 200)) : '<div class="empty">No rows. Either nothing matches, or the sources do not carry this — open <em>what ran</em> to see which.</div>';
+        html += warnBlock(w);
+        html += '<div class="meta"><span>' + rows.length + (rows.length === 200 ? '+' : '') + ' rows</span><span>' + (d.apiCalls == null ? '' : d.apiCalls + ' GitHub calls') + '</span><span>' + (d.llmCalls ? d.llmCalls + ' model call' + (d.llmCalls > 1 ? 's' : '') : 'no model call in the query') + '</span><span>' + (d.durationMs ? Math.round(d.durationMs / 100) / 10 + ' s' : '') + '</span></div>';
+        if (d.cypher) html += '<details class="cy"><summary>what ran</summary><pre class="cy">' + esc(d.cypher) + '</pre></details>';
+        out.innerHTML = html;
+      })
+      .catch(function (e) { out.innerHTML = '<div class="note bad"><strong>Could not ask.</strong> ' + esc(e.message || e) + '</div>'; })
+      .then(function () { $('askGo').disabled = false; });
+  }
+  $('askGo').addEventListener('click', ask);
+  $('q').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') ask(); });
+
+  /* ── headline ── */
+  function tiles(t) { $('tiles').innerHTML = t.map(function (x) { return '<div class="tile"><div class="n" style="color:' + (x.colour || 'inherit') + '">' + esc(x.n) + '</div><div class="l">' + esc(x.l) + '</div></div>'; }).join(''); }
+  function headline(c) {
+    Promise.all([load('ActionsRunCount', { repo: c.repo, since: c.since }), load('ActionsSlowestRuns', { repo: c.repo, since: c.since, limit: 1 })]).then(function (r) {
+      var k = r[0].rows[0] || {}, s = r[1].rows[0], runs = k.runs || 0, failed = k.failed || 0, rate = k.successRatePct, v = $('verdict');
+      if (!runs) { v.className = 'verdict'; v.innerHTML = '<div class="big">No runs in the last ' + c.days + ' days.</div><div class="why">' + esc(c.repo) + ' had no workflow runs in the window. A token that cannot see the repository would show as a red notice, not as this.</div>' + warnBlock(r[0].warnings); }
+      else { v.className = 'verdict ' + (failed === 0 ? 'calm' : (rate != null && rate < 80 ? 'hot' : 'warm'));
+        v.innerHTML = '<div class="big">' + esc(c.repo) + ': ' + runs + ' runs in the last ' + c.days + ' days, ' + failed + ' failed' + (rate != null ? ', ' + rate + '% of completed runs succeeded' : '') + '.</div><div class="why">' + (s ? 'Slowest: ' + esc(s.workflow) + ' at ' + s.runMinutes + ' min — ' + link(s.url, 'open on GitHub') : '') + '</div>' + warnBlock(r[0].warnings); }
+      tiles([{ n: runs, l: 'runs' }, { n: k.succeeded || 0, l: 'succeeded', colour: 'var(--green)' }, { n: failed, l: 'failed', colour: failed ? 'var(--red)' : '' }, { n: k.cancelled || 0, l: 'cancelled' }, { n: rate == null ? '—' : rate + '%', l: 'success rate' }, { n: s ? s.runMinutes : '—', l: 'slowest, minutes' }]);
+      stamp();
+    }).catch(function (e) { failure($('verdict'), e); $('tiles').innerHTML = ''; });
+  }
+
+  /* ── overview: workflows + trend ── */
+  function overview(c) {
+    var el = $('p-overview');
+    Promise.all([load('ActionsWorkflowSummary', { repo: c.repo, since: c.since }), load('ActionsDailyRuns', { repo: c.repo, since: c.since })]).then(function (r) {
+      var w = r[0], d = r[1], html = '<h3 class="t">Per workflow</h3>' + warnBlock(w.warnings);
+      html += w.rows.length ? '<div class="tablewrap"><table><thead><tr><th>Workflow</th><th class="num">Runs</th><th class="num">Failed</th><th class="num">Failure rate</th><th class="num">Avg min</th><th class="num">Longest min</th><th class="num">Avg queue s</th></tr></thead><tbody>' +
+        w.rows.map(function (x) { return '<tr><td>' + esc(x.workflow) + '</td><td class="num">' + x.runs + '</td><td class="num" style="color:' + (x.failed ? 'var(--red)' : 'inherit') + '">' + x.failed + '</td><td class="num">' + x.failureRatePct + '%</td><td class="num">' + x.avgRunMinutes + '</td><td class="num">' + x.longestRunMinutes + '</td><td class="num">' + x.avgQueueSeconds + '</td></tr>'; }).join('') + '</tbody></table></div>' : empty('No completed runs in the window.');
+      html += '<h3 class="t">Runs per day (UTC)</h3>' + warnBlock(d.warnings);
+      if (d.rows.length) { var max = Math.max.apply(null, d.rows.map(function (x) { return x.runs; })) || 1;
+        html += '<div class="bars"><div class="muted">day</div><div class="muted">green succeeded · red failed · grey other</div><div class="muted num">runs / failed</div><div class="muted num">avg min</div>' +
+          d.rows.map(function (x) { var ok = 100 * (x.succeeded || 0) / max, ko = 100 * (x.failed || 0) / max, oth = 100 * (x.runs - (x.succeeded || 0) - (x.failed || 0)) / max;
+            return '<div>' + esc(x.day) + '</div><div class="bar" title="' + x.runs + ' runs"><div class="ok" style="width:' + ok + '%"></div><div class="ko" style="width:' + ko + '%"></div><div class="oth" style="width:' + oth + '%"></div></div><div class="num">' + x.runs + ' / ' + x.failed + '</div><div class="num">' + (x.avgRunMinutes == null ? '—' : x.avgRunMinutes) + '</div>'; }).join('') + '</div>'; }
+      else html += empty('No runs in the window.');
+      el.innerHTML = html;
+    }).catch(function (e) { failure(el, e); });
+  }
+
+  /* ── runs ── */
+  function runsTable(rows, withConclusion) {
+    return '<div class="tablewrap"><table><thead><tr><th>Workflow</th><th>Title</th><th>Branch</th><th>' + (withConclusion ? 'Result' : 'Attempt') + '</th><th class="num">Minutes</th><th>When</th><th></th></tr></thead><tbody>' +
+      rows.map(function (x) { return '<tr class="pick" data-run="' + esc(x.runId) + '" data-created="' + esc(x.createdAt) + '"><td>' + esc(x.workflow) + '</td><td>' + esc(x.title) + '</td><td>' + esc(x.branch) + '</td><td>' + (withConclusion ? pill(x.conclusion) : '#' + x.attempt) + '</td><td class="num">' + x.runMinutes + '</td><td class="muted">' + esc(String(x.createdAt).replace('T', ' ').replace('Z', '')) + '</td><td>' + link(x.url, 'GitHub') + '</td></tr>'; }).join('') + '</tbody></table></div><p class="muted">Click a run for its jobs.</p>';
+  }
+  function bindPicks(el, c) { el.querySelectorAll('tr.pick').forEach(function (tr) { tr.addEventListener('click', function () { jobs(c, Number(tr.dataset.run), tr.dataset.created); }); }); }
+  function runs(c) {
+    var el = $('p-runs');
+    Promise.all([load('ActionsSlowestRuns', { repo: c.repo, since: c.since, limit: 15 }), load('ActionsFailedRuns', { repo: c.repo, since: c.since, limit: 50 })]).then(function (r) {
+      el.innerHTML = '<h3 class="t">Slowest runs</h3>' + warnBlock(r[0].warnings) + (r[0].rows.length ? runsTable(r[0].rows, true) : empty('No completed runs in the window.')) +
+        '<h3 class="t">Failed runs</h3>' + warnBlock(r[1].warnings) + (r[1].rows.length ? runsTable(r[1].rows, false) : empty('No run concluded failure in the window. Green, not broken.'));
+      bindPicks(el, c);
+    }).catch(function (e) { failure(el, e); });
+  }
+  function jobs(c, runId, createdAt) {
+    var d = $('drawer'); d.style.display = 'block'; d.innerHTML = '<h3>Run ' + runId + '</h3><div class="muted">Reading its jobs…</div>'; d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    load('ActionsRunJobs', { repo: c.repo, runId: runId, since: createdAt || c.since }).then(function (r) {
+      if (!r.rows.length) { d.innerHTML = '<h3>Run ' + runId + '</h3>' + warnBlock(r.warnings) + empty('No jobs came back — a run still queued has none; otherwise this is the lookup failing.'); return; }
+      d.innerHTML = '<h3>Run ' + runId + ' — jobs, slowest first</h3>' + warnBlock(r.warnings) + '<div class="tablewrap"><table><thead><tr><th>Job</th><th>Attempt</th><th>Result</th><th class="num">Minutes</th><th>Failed step</th><th>Runner</th><th></th></tr></thead><tbody>' +
+        r.rows.map(function (j) { return '<tr><td>' + esc(j.job) + '</td><td>#' + j.attempt + '</td><td>' + pill(j.conclusion) + '</td><td class="num">' + (j.runMinutes == null ? '—' : j.runMinutes) + '</td><td style="color:var(--red)">' + esc((j.failedSteps || []).join(', ')) + '</td><td class="muted">' + esc(j.runner || '') + '</td><td>' + link(j.url, 'log') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    }).catch(function (e) { failure(d, e); });
+  }
+
+  /* ── failures ── */
+  function failures(c) {
+    var el = $('p-failures');
+    Promise.all([load('ActionsFailingSteps', { repo: c.repo, since: c.since, runs: 25 }), load('ActionsSlowestJobs', { repo: c.repo, since: c.since, runs: 8, limit: 10 })]).then(function (r) {
+      var f = r[0], s = r[1];
+      el.innerHTML = '<h3 class="t">What keeps failing — by job and step</h3>' + warnBlock(f.warnings) +
+        (f.rows.length ? '<div class="tablewrap"><table><thead><tr><th>Workflow</th><th>Job</th><th>Failed step</th><th class="num">Failures</th><th class="num">Runs</th><th>Examples</th></tr></thead><tbody>' +
+          f.rows.map(function (x) { return '<tr><td>' + esc(x.workflow) + '</td><td>' + esc(x.job) + '</td><td>' + esc(x.step) + '</td><td class="num" style="color:var(--red)">' + x.failures + '</td><td class="num">' + x.runsAffected + '</td><td>' + (x.exampleRuns || []).map(function (u, i) { return link(u, 'run ' + (i + 1)); }).join(' · ') + '</td></tr>'; }).join('') + '</tbody></table></div>' : empty('No failed job in the newest failed runs of the window.')) +
+        '<h3 class="t">Where the time goes — the longest jobs inside the slowest runs</h3>' + warnBlock(s.warnings) +
+        (s.rows.length ? '<div class="tablewrap"><table><thead><tr><th>Job</th><th>Result</th><th class="num">Job min</th><th>Run</th><th class="num">Run min</th><th></th></tr></thead><tbody>' +
+          s.rows.map(function (x) { return '<tr><td>' + esc(x.job) + '</td><td>' + pill(x.conclusion) + '</td><td class="num">' + x.jobMinutes + '</td><td>' + esc(x.workflow) + ' #' + x.runId + '</td><td class="num">' + x.runMinutes + '</td><td>' + link(x.url, 'log') + '</td></tr>'; }).join('') + '</tbody></table></div>' : empty('No completed runs to open.'));
+    }).catch(function (e) { failure(el, e); });
+  }
+  function flaky(c) {
+    var el = $('p-flaky'), since30 = iso(Date.now() - 30 * 86400000);
+    Promise.all([load('ActionsPassedOnRetry', { repo: c.repo, since: since30, limit: 30 }), load('ActionsFlakyJobs', { repo: c.repo, since: since30, runs: 20 })]).then(function (r) {
+      var p = r[0], j = r[1];
+      el.innerHTML = '<p class="muted">Last 30 days whatever the window above: flakiness needs a longer look.</p>' + warnBlock(p.warnings) +
+        '<h3 class="t">Jobs that failed, then passed on re-run</h3>' + (j.rows.length ? '<div class="tablewrap"><table><thead><tr><th>Job</th><th>Workflow</th><th class="num">Times</th><th>Examples</th></tr></thead><tbody>' + j.rows.map(function (x) { return '<tr><td>' + esc(x.job) + '</td><td>' + esc(x.workflow) + '</td><td class="num">' + x.timesFlaked + '</td><td>' + (x.exampleRuns || []).map(function (u, i) { return link(u, 'run ' + (i + 1)); }).join(' · ') + '</td></tr>'; }).join('') + '</tbody></table></div>' : empty('No job flaked: nothing passed on retry in the last 30 days, or the retried runs had no job that both failed and passed.')) +
+        '<h3 class="t">Runs that passed on retry</h3>' + (p.rows.length ? '<div class="tablewrap"><table><thead><tr><th>Workflow</th><th>Title</th><th>Branch</th><th class="num">Attempts</th><th>When</th><th></th></tr></thead><tbody>' + p.rows.map(function (x) { return '<tr><td>' + esc(x.workflow) + '</td><td>' + esc(x.title) + '</td><td>' + esc(x.branch) + '</td><td class="num">' + x.attempts + '</td><td class="muted">' + esc(String(x.createdAt).slice(0, 10)) + '</td><td>' + link(x.url, 'GitHub') + '</td></tr>'; }).join('') + '</tbody></table></div>' : empty('Nothing was re-run to success in the last 30 days.'));
+    }).catch(function (e) { failure(el, e); });
+  }
+  $('themesGo').addEventListener('click', function () {
+    var c = ctx(), out = $('themesOut'); out.innerHTML = '<div class="muted">Reading failures…</div>';
+    load('ActionsFailureThemes', { repo: c.repo, since: c.since, runs: 20, count: 5 }).then(function (r) { var t = r.rows[0] && r.rows[0].themes;
+      out.innerHTML = warnBlock(r.warnings) + (Array.isArray(t) && t.length ? '<ol class="prose" style="padding-left:34px">' + t.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : empty(typeof t === 'string' ? t : 'No failures to read in the window.'));
+    }).catch(function (e) { failure(out, e); });
+  });
+  $('briefGo').addEventListener('click', function () {
+    var c = ctx(), out = $('briefOut'); out.innerHTML = '<div class="muted">Composing…</div>';
+    load('ActionsBriefing', { repo: c.repo, since: c.since, runs: 15 }).then(function (r) { var b = r.rows[0] && r.rows[0].briefing;
+      out.innerHTML = warnBlock(r.warnings) + (b && !String(b).startsWith('UNAVAILABLE') ? '<div class="prose">' + esc(b) + '</div>' : empty('Nothing to brief on: no completed runs in the window.'));
+    }).catch(function (e) { failure(out, e); });
+  });
+
+  /* ── the views explorer: every view of the realm, from the world's contracts ── */
+  var contractsP = null;
+  function contracts() {
+    if (contractsP) return contractsP;
+    contractsP = (typeof embabel.contracts === 'function' ? Promise.resolve(embabel.contracts()) : fetch('/api/v1/apps-runtime/v1/contracts', { credentials: 'include' }).then(function (r) { return r.json(); }))
+      .then(function (c) { var vs = (c && c.views) || []; return vs.filter(function (v) { return v.realm === REALM || /^Actions/.test(v.name); }); })
+      .catch(function (e) { contractsP = null; throw e; });
+    return contractsP;
+  }
+  var explorerBuilt = false, selected = null;
+  function explorer() {
+    if (explorerBuilt) return; explorerBuilt = true;
+    contracts().then(function (vs) {
+      $('vlist').innerHTML = vs.map(function (v) { return '<button type="button" data-view="' + esc(v.name) + '" class="' + (AI_VIEWS[v.name] ? 'ai' : '') + '">' + esc(v.name) + '<small>' + esc(v.description || '') + '</small></button>'; }).join('');
+      $('vlist').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { pick(vs.find(function (v) { return v.name === b.dataset.view; })); }); });
+      var last = null; try { last = localStorage.getItem('ci-health.view'); } catch (e) {}
+      var first = vs.find(function (v) { return v.name === last; }) || vs[0]; if (first) pick(first);
+    }).catch(function (e) { explorerBuilt = false; failure($('vpane'), e); });
+  }
+  function pick(v) {
+    if (!v) return; selected = v; try { localStorage.setItem('ci-health.view', v.name); } catch (e) {}
+    $('vlist').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.view === v.name ? 'true' : 'false'); });
+    var c = ctx(), params = v.params || {};
+    var form = Object.keys(params).map(function (k) { var p = params[k]; var dflt = p.default == null ? '' : p.default;
+      if (k === 'repo') dflt = c.repo; if (k === 'since') dflt = c.since; if (k === 'until' && String(dflt).startsWith('9999')) dflt = '';
+      return '<div><label for="f-' + esc(k) + '">' + esc(k) + ' <span style="text-transform:none;letter-spacing:0">(' + esc(p.type || 'string') + ')</span></label><input id="f-' + esc(k) + '" data-key="' + esc(k) + '" data-type="' + esc(p.type || 'string') + '" value="' + esc(dflt) + '"><div class="hint">' + esc(p.description || '') + '</div></div>'; }).join('');
+    $('vpane').innerHTML = '<h3 class="t" style="margin-top:0">' + esc(v.name) + (AI_VIEWS[v.name] ? ' <span class="pill" style="color:var(--purple)">costs a model call</span>' : '') + '</h3><p class="muted">' + esc(v.description || '') + '</p><div class="form">' + form + '</div><button class="btn" id="vrun">Run</button> <span class="muted" id="vmeta"></span><div id="vout" style="margin-top:12px"></div>';
+    $('vrun').addEventListener('click', runSelected);
+    $('vpane').querySelectorAll('input').forEach(function (i) { i.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') runSelected(); }); });
+  }
+  function formArgs() {
+    var args = {};
+    $('vpane').querySelectorAll('input[data-key]').forEach(function (i) { var val = i.value.trim(); if (val === '') return; args[i.dataset.key] = i.dataset.type === 'int' ? Number(val) : i.dataset.type === 'number' ? Number(val) : val; });
+    return args;
+  }
+  function runSelected() {
+    var v = selected, args = formArgs(), out = $('vout'), meta = $('vmeta');
+    out.innerHTML = '<div class="muted">Running…</div>'; meta.textContent = ''; $('vrun').disabled = true;
+    var t0 = Date.now();
+    embabel.views.invoke(v.name, args, { state: stateEl }).then(function (res) {
+      var rows = rowsOf(res), w = warningsOf(res);
+      meta.textContent = rows.length + ' rows · ' + Math.round((Date.now() - t0) / 100) / 10 + ' s';
+      out.innerHTML = warnBlock(w) + (rows.length ? grid(rows.slice(0, 500)) : empty('No rows for these parameters. See "How it works → When it looks wrong" for what that means for this view.')) + '<details class="cy" id="vcy"><summary>what ran</summary><pre class="cy">reading back from the server…</pre></details>';
+      fetch('/api/v1/admin/kg/views/' + encodeURIComponent(v.name) + '/invocation', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ args: args }) })
+        .then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { var pre = out.querySelector('#vcy pre'); if (pre) pre.textContent = d && d.cypher ? d.cypher : 'The invocation could not be read back (this needs an admin session).'; }).catch(function () {});
+    }).catch(function (e) { failure(out, e); }).then(function () { $('vrun').disabled = false; });
+  }
+
+  /* ── how it works, section 2: read back live ── */
+  var howBuilt = false;
+  function howViews() {
+    if (howBuilt) return; howBuilt = true;
+    var c = ctx();
+    contracts().then(function (vs) {
+      var box = $('howViews'); box.innerHTML = '';
+      vs.forEach(function (v) {
+        var params = v.params || {};
+        var div = document.createElement('div'); div.className = 'view';
+        div.innerHTML = '<div><code>' + esc(v.name) + '</code>' + (AI_VIEWS[v.name] ? ' <span class="pill" style="color:var(--purple)">model call in-query</span>' : '') + '</div><p>' + esc(v.description || '') + '</p>' +
+          (Object.keys(params).length ? '<p class="muted">Parameters: ' + Object.keys(params).map(function (k) { return '<code>' + esc(k) + '</code> (' + esc(params[k].type || 'string') + (params[k].default != null && params[k].default !== '' ? ', default ' + esc(params[k].default) : '') + ')'; }).join(', ') + '</p>' : '') +
+          '<pre>reading back…</pre>';
+        box.appendChild(div);
+        var args = { repo: c.repo }; if (params.since) args.since = c.since;
+        fetch('/api/v1/admin/kg/views/' + encodeURIComponent(v.name) + '/invocation', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ args: args }) })
+          .then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { div.querySelector('pre').textContent = d && d.cypher ? d.cypher : 'Could not read the invocation back (this needs an admin session). The saved Cypher is in the realm under views/.'; })
+          .catch(function () { div.querySelector('pre').textContent = 'Could not read the invocation back.'; });
+      });
+    }).catch(function (e) { howBuilt = false; failure($('howViews'), e); });
+  }
+
+  /* ── go ── */
+  function readAll() {
+    var c = ctx();
+    try { localStorage.setItem('ci-health.days', String(c.days)); } catch (e) {}
+    $('drawer').style.display = 'none'; $('themesOut').innerHTML = ''; $('briefOut').innerHTML = '';
+    fleet(c, false);
+    if (!/^[\w.-]+\/[\w.-]+$/.test(c.repo)) { $('verdict').className = 'verdict'; $('verdict').innerHTML = '<div class="big">Pick a repository to read.</div><div class="why">The Fleet tab shows every repository you follow; the other tabs need one picked.</div>'; $('tiles').innerHTML = ''; ['overview', 'runs', 'failures', 'flaky'].forEach(function (p) { $('p-' + p).innerHTML = empty('Pick a repository first.'); }); return; }
+    chips();
+    $('verdict').className = 'verdict'; $('verdict').innerHTML = '<div class="big">Reading ' + esc(c.repo) + '…</div><div class="why">Reading the runs since ' + esc(c.since) + '.</div>';
+    headline(c); overview(c); runs(c); failures(c); flaky(c);
+    if (selected) pick(selected);
+  }
+  $('go').addEventListener('click', readAll);
+  try { var d0 = localStorage.getItem('ci-health.days'); if (d0) $('days').value = d0;
+        var t0 = localStorage.getItem('ci-health.tab'); if (t0 && document.querySelector('nav [data-tab="' + t0 + '"]')) showTab(t0); } catch (e) {}
+  function start() {
+    loadWatchlist(false).then(function (ws) {
+      var r0 = null; try { r0 = localStorage.getItem('ci-health.repo'); } catch (e) {}
+      setRepo(ws.some(function (w) { return w.repo === r0; }) ? r0 : (ws.length ? ws[0].repo : ''));
+      if (!ws.length) showTab('fleet');
+      readAll();
+    }).catch(function (e) { failure($('verdict'), e); $('p-fleet').innerHTML = ''; failure($('p-fleet'), e); });
+  }
+  if (window.embabel && embabel.manifest && embabel.manifest.ready) embabel.manifest.ready.then(start, start); else start();
+})();
+</script>
+</body>
+</html>

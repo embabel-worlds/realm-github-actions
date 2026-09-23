@@ -1,0 +1,12 @@
+{
+  "name": "realm-github-actions",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Browser harness for the CI Health app (tests/app.spec.js). The realm itself is declarative and needs no build.",
+  "scripts": {
+    "test:app": "playwright test tests/app.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}

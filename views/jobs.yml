@@ -1,0 +1,116 @@
+# Views that take the SECOND and THIRD hop — jobs under a run, annotations under a job. Each
+# hop is one API call per anchor, so every view here narrows the runs first (a LIMIT, a
+# conclusion, a window) and only then fetches jobs. The order matters: sort and LIMIT the runs
+# you will show, THEN resolve their jobs — never the other way round. Window parameters as in
+# actions.yml: pass `since` to scope the run fetch at GitHub.
+
+- name: ActionsRunJobs
+  description: >-
+    The jobs of ONE run with each job's run time, conclusion, runner and the step that failed —
+    slowest job first. THE answer for "why was this run slow", "which job failed in run X",
+    "what step broke". Give the run id from ActionsSlowestRuns or ActionsFailedRuns.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    runId: { type: int, default: 0, description: "The numeric run id (from a run's URL or another view)." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "The run's created_at (or any ISO-8601 instant not after it). Pushed to GitHub so the lookup fetches one page instead of the last 1,000 runs; pass it when you have it." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
+    WHERE run.created_at >= $since AND toInteger(run.id) = $runId
+    MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+    WITH j, CASE WHEN j.status = 'completed' THEN duration.inSeconds(datetime(j.started_at), datetime(j.completed_at)).seconds ELSE null END AS jobSeconds
+    RETURN toInteger(j.id) AS jobId, j.name AS job, toInteger(j.run_attempt) AS attempt,
+           j.status AS status, j.conclusion AS conclusion,
+           round(jobSeconds / 60.0, 1) AS runMinutes, jobSeconds,
+           [i IN range(0, size(coalesce(j.step_names, [])) - 1) WHERE j.step_conclusions[i] = 'failure' | j.step_names[i]] AS failedSteps, size(coalesce(j.step_names, [])) AS steps,
+           j.runner_name AS runner, j.started_at AS startedAt, j.html_url AS url
+    ORDER BY jobSeconds DESC
+
+- name: ActionsSlowestJobs
+  description: >-
+    The longest jobs inside the slowest runs of a window — which job is actually eating the
+    time, slowest first, with its run, workflow and link. "Slowest jobs", "where does build
+    time go", "which job is the bottleneck". Reads the jobs of the `runs` slowest runs only.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+    runs:  { type: int, default: 10, description: "How many of the slowest runs to open (one API call each)." }
+    limit: { type: int, default: 15, description: "How many jobs to return." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND run.status = 'completed'
+    WITH run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
+    ORDER BY runSeconds DESC LIMIT $runs
+    MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+    WHERE j.status = 'completed'
+    WITH run, runSeconds, j, duration.inSeconds(datetime(j.started_at), datetime(j.completed_at)).seconds AS jobSeconds
+    RETURN toInteger(j.id) AS jobId, j.name AS job, j.conclusion AS conclusion,
+           round(jobSeconds / 60.0, 1) AS jobMinutes, jobSeconds,
+           toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.head_branch AS branch,
+           round(runSeconds / 60.0, 1) AS runMinutes, j.html_url AS url
+    ORDER BY jobSeconds DESC
+    LIMIT $limit
+
+- name: ActionsFailingSteps
+  description: >-
+    Which job and step fail most: the failed jobs inside the most recent failed runs of a
+    window, grouped by job name and failed step, most frequent first, with example run links.
+    THE answer for "what keeps failing", "most common failure", "which step breaks most".
+    Deterministic — counts, not a model's opinion. Opens the jobs of the `runs` newest failed runs.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+    runs:  { type: int, default: 25, description: "How many of the newest failed runs to open (one API call each)." }
+    limit: { type: int, default: 20, description: "How many (job, step) rows." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND run.conclusion = 'failure'
+    WITH run ORDER BY run.created_at DESC LIMIT $runs
+    MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+    WHERE j.conclusion = 'failure'
+    WITH run, j, [i IN range(0, size(coalesce(j.step_names, [])) - 1) WHERE j.step_conclusions[i] = 'failure' | j.step_names[i]] AS failedSteps
+    UNWIND (CASE WHEN size(failedSteps) = 0 THEN ['(no failed step recorded)'] ELSE failedSteps END) AS step
+    WITH CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, j.name AS job, step, collect(DISTINCT run) AS runsHit, count(j) AS failures
+    RETURN workflow, job, step, failures, size(runsHit) AS runsAffected,
+           [x IN runsHit[0..3] | x.html_url] AS exampleRuns
+    ORDER BY failures DESC, runsAffected DESC
+    LIMIT $limit
+
+- name: ActionsFlakyJobs
+  description: >-
+    Jobs that failed and then passed on a re-run of the same run — the job-level flakiness
+    list, most often first, with the runs it happened in. "Flaky jobs", "flaky tests" (at job
+    granularity), "which job do we keep re-running". Opens the jobs of runs that passed on retry.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 30, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+    runs:  { type: int, default: 25, description: "How many of the newest passed-on-retry runs to open (one API call each)." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND toInteger(run.run_attempt) > 1 AND run.conclusion = 'success'
+    WITH run ORDER BY run.created_at DESC LIMIT $runs
+    MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+    WITH run, j.name AS job, collect(DISTINCT j.conclusion) AS conclusions
+    WHERE 'failure' IN conclusions AND 'success' IN conclusions
+    WITH job, collect(DISTINCT run) AS runsHit
+    RETURN job, size(runsHit) AS timesFlaked,
+           [x IN runsHit | CASE WHEN x.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(x.path, '/')[1] ELSE x.name END][0] AS workflow,
+           [x IN runsHit[0..3] | x.html_url] AS exampleRuns
+    ORDER BY timesFlaked DESC, job ASC

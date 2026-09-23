@@ -1,0 +1,36 @@
+# Tips shipped with the realm. Every question here is one the battery proves
+# (tests/questions.yml); a tip that suggests a question the world cannot answer is a broken
+# promise with a button on it.
+
+- category: hint
+  title: How are the builds doing?
+  body: "**How are the builds doing in owner/repo** answers per workflow — runs, failure rate, average and longest run time — from GitHub Actions read live."
+  action:
+    label: Ask it
+    chatInput: "how are the builds doing in embabel/embabel-agent"
+
+- category: hint
+  title: Why was it slow?
+  body: "Take a run id from **slowest workflow runs in owner/repo** into **why was run 123 slow** — the jobs under it, slowest first, with the step that failed."
+  action:
+    label: Ask it
+    chatInput: "slowest workflow runs in embabel/embabel-agent in the last 7 days"
+
+- category: hint
+  title: What keeps failing
+  body: "**What keeps failing in owner/repo** counts failed jobs by the step that broke — a figure, not an opinion. **Why do our builds fail** reads the same rows and names the causes."
+  action:
+    label: Ask it
+    chatInput: "what keeps failing in embabel/embabel-agent"
+
+- category: did-you-know
+  title: Pass a date, save nine calls
+  body: "A window given as a date — **runs since 2026-09-16** — is pushed to GitHub and fetches one page. A relative window is applied in the graph over the last 1,000 runs, and says PARTIAL when the repository has more."
+  action:
+    label: Try it
+    chatInput: "how many workflow runs did embabel/embabel-agent have since 2026-09-16"
+
+- category: hint
+  surface: console
+  title: CI Health, served by this world
+  body: "The Apps tab serves **CI Health** — per-workflow health, the trend, the slowest and failed runs with their jobs, and the failure themes and standup briefing, every figure linking back to GitHub."

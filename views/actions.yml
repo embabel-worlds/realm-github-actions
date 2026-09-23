@@ -1,0 +1,227 @@
+# The answer surface: one view per question the realm exists to answer, so nobody hand-writes
+# Cypher over the join surface. Every view pins the repository from its `repo` parameter.
+#
+# TWO DOORS. Windowed analytics (count, summary, trend, slowest, failures, flakiness, themes,
+# briefing) read HAS_RUN_HISTORY: the last 31 days as calendar periods, one GitHub call per
+# day per repository, closed days cached for the life of the process — a cold read of a
+# repository costs ~31 small calls once, every later read of any window costs at most one.
+# "Right now" views (recent runs, a run's jobs, and the fleet's broken mains and PRs) read
+# HAS_WORKFLOW_RUN live, with a literal `since` pushed down to GitHub's `created` filter.
+#
+# ONE CACHE KEY PER REPOSITORY on the history door: every predicate on a history view sits
+# BEHIND a `WITH run`, so nothing is attached to the fetch and every view and every window
+# shares the same cached days. A predicate in the MATCH's own WHERE becomes part of the fetch
+# key, and each view would then re-read all 31 days for itself.
+#
+# WINDOWS. Three parameters, same on every windowed view:
+#   since  — ISO-8601 lower bound on created_at; overrides `days`. On the live door it is
+#            pushed down to GitHub; on the history door it is applied in the graph.
+#   until  — ISO-8601 upper bound (exclusive), applied in the graph. With `since` it fixes a
+#            window so a figure here and one computed straight from GitHub agree to the row.
+#   days   — a relative window ending now, applied in the graph, used when `since` is left
+#            at its epoch default. At most 31 on the history door.
+# GitHub's timestamps share one format, so string comparison on them is exact.
+#
+# FIGURES. Producer values are strings: toInteger()/datetime() everywhere. Run time is
+# updated_at − run_started_at on a COMPLETED run; queue time is run_started_at − created_at.
+# Every entity column travels with its id and URL, so a figure can be checked on GitHub.
+# A workflow is labelled by run.name, except GitHub's own dynamic workflows (Dependabot,
+# Copilot, dependency submission), whose run names are per-run prose — those are labelled
+# by the dynamic path segment.
+
+- name: ActionsRunCount
+  description: >-
+    How many workflow runs a repository had in a window, how many completed, how many failed,
+    and the success rate. THE answer for "how many builds ran", "how many failed this week",
+    "what's our CI success rate". One row.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+    WITH count(run) AS runs,
+         sum(CASE WHEN run.status = 'completed' THEN 1 ELSE 0 END) AS completed,
+         sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed,
+         sum(CASE WHEN run.conclusion = 'success' THEN 1 ELSE 0 END) AS succeeded,
+         sum(CASE WHEN run.conclusion = 'cancelled' THEN 1 ELSE 0 END) AS cancelled
+    RETURN runs, completed, succeeded, failed, cancelled,
+           CASE WHEN completed = 0 THEN null
+                ELSE round(100.0 * succeeded / completed, 1) END AS successRatePct
+
+- name: ActionsRecentRuns
+  description: >-
+    The runs in a window, newest first, each with its workflow, branch, trigger, conclusion,
+    queue time and run time in seconds, who triggered it, and its link. The base list —
+    "show me this week's builds", "recent runs on main", "what ran today".
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 7, description: "Window in days ending now. Applied in the graph; ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z. Pushed to GitHub, so the fetch is scoped at the source — pass it whenever you can compute it." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+    limit: { type: int, default: 200, description: "Maximum rows." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+    RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
+           run.head_branch AS branch, run.event AS event, run.status AS status,
+           run.conclusion AS conclusion, toInteger(run.run_attempt) AS attempt,
+           run.actor AS actor, run.created_at AS createdAt,
+           CASE WHEN run.status = 'completed' THEN duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds ELSE null END AS runSeconds,
+           duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds,
+           run.html_url AS url
+    ORDER BY run.created_at DESC
+    LIMIT $limit
+
+- name: ActionsWorkflowSummary
+  description: >-
+    Per workflow, over a window: runs, failures, failure rate, average and longest run time in
+    minutes, and average queue time in seconds — worst failure rate first. THE answer for "how
+    are our builds doing", "which workflow fails most", "average build time", "CI health".
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND run.status = 'completed'
+    WITH CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds, duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds
+    WITH workflow, count(run) AS runs,
+         sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed,
+         sum(CASE WHEN run.conclusion = 'success' THEN 1 ELSE 0 END) AS succeeded,
+         sum(CASE WHEN run.conclusion = 'cancelled' THEN 1 ELSE 0 END) AS cancelled,
+         avg(runSeconds) AS avgRunSeconds, max(runSeconds) AS maxRunSeconds,
+         avg(queueSeconds) AS avgQueueSeconds
+    RETURN workflow, runs, succeeded, failed, cancelled,
+           round(100.0 * failed / runs, 1) AS failureRatePct,
+           round(avgRunSeconds / 60.0, 1) AS avgRunMinutes,
+           round(maxRunSeconds / 60.0, 1) AS longestRunMinutes,
+           round(avgQueueSeconds, 0) AS avgQueueSeconds
+    ORDER BY failureRatePct DESC, runs DESC
+
+- name: ActionsSlowestRuns
+  description: >-
+    The longest completed runs in a window, slowest first, with run time in minutes, queue time,
+    workflow, branch and link. "Slowest builds", "which build took longest", "long-running
+    workflows". Follow a runId into ActionsRunJobs to see which job took the time.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+    limit: { type: int, default: 10, description: "How many runs." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND run.status = 'completed'
+    WITH run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
+    RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
+           run.head_branch AS branch, run.conclusion AS conclusion,
+           round(runSeconds / 60.0, 1) AS runMinutes, runSeconds,
+           duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds,
+           run.created_at AS createdAt, run.html_url AS url
+    ORDER BY runSeconds DESC, run.created_at DESC
+    LIMIT $limit
+
+- name: ActionsFailedRuns
+  description: >-
+    Runs that concluded failure in a window, newest first, with workflow, branch, trigger,
+    attempt, who triggered it and link. "What failed this week", "failed builds on main",
+    "which runs broke". Follow a runId into ActionsRunJobs for the failing job and step.
+  params:
+    repo:   { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+    branch: { type: string, default: "", description: "Only this branch, e.g. main. Empty = every branch." }
+    limit:  { type: int, default: 50, description: "Maximum rows." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND run.conclusion = 'failure'
+      AND ($branch = '' OR run.head_branch = $branch)
+    RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
+           run.head_branch AS branch, run.event AS event, toInteger(run.run_attempt) AS attempt,
+           run.actor AS actor, run.created_at AS createdAt,
+           round(duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds / 60.0, 1) AS runMinutes,
+           run.html_url AS url
+    ORDER BY run.created_at DESC
+    LIMIT $limit
+
+- name: ActionsDailyRuns
+  description: >-
+    Runs per calendar day (UTC) over a window with how many failed and the average run time,
+    oldest day first — the trend line. "Builds per day", "is CI getting slower", "failure
+    trend".
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 14, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+    WITH substring(run.created_at, 0, 10) AS day, run,
+         CASE WHEN run.status = 'completed' THEN duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds ELSE null END AS runSeconds
+    RETURN day, count(run) AS runs,
+           sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed,
+           sum(CASE WHEN run.conclusion = 'success' THEN 1 ELSE 0 END) AS succeeded,
+           round(avg(runSeconds) / 60.0, 1) AS avgRunMinutes
+    ORDER BY day ASC
+
+- name: ActionsPassedOnRetry
+  description: >-
+    Runs that succeeded only after being re-run (run_attempt above 1, conclusion success) — the
+    run-level signal of flakiness, newest first. "Flaky builds", "what passed on retry", "how
+    often do we re-run". Follow into ActionsFlakyJobs for the job names behind it.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    days:  { type: int, default: 30, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+    limit: { type: int, default: 50, description: "Maximum rows." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run
+    WHERE run.created_at >= $since
+      AND run.created_at < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(run.created_at) >= datetime() - duration({days: $days}))
+      AND toInteger(run.run_attempt) > 1 AND run.conclusion = 'success'
+    RETURN toInteger(run.id) AS runId, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run.display_title AS title,
+           run.head_branch AS branch, toInteger(run.run_attempt) AS attempts,
+           run.actor AS actor, run.created_at AS createdAt, run.html_url AS url
+    ORDER BY run.created_at DESC
+    LIMIT $limit
+
+- name: ActionsWorkflows
+  description: >-
+    The workflows a repository defines — name, file, state and link — including the dynamic
+    ones GitHub runs itself. "What workflows do we have", "which workflows are disabled".
+  params:
+    repo: { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_WORKFLOW]->(w:Workflow)
+    RETURN toInteger(w.id) AS workflowId, w.name AS workflow, w.path AS path, w.state AS state,
+           w.html_url AS url
+    ORDER BY w.state ASC, w.name ASC

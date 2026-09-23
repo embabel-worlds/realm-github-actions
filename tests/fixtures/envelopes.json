@@ -1,0 +1,1179 @@
+{
+ "capturedAt": 1790183108000,
+ "repo": "embabel/embabel-agent",
+ "since": "2026-09-16T17:05:08Z",
+ "envelopes": {
+  "view:ActionsWatchlist:{}": {
+   "executionId": "exec_554ae73b-d3e5-47c4-8bef-05d86a667dde",
+   "operationId": "ActionsWatchlist",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "id": "actionswatch:rod_assistant:embabel/embabel-agent",
+     "repo": "embabel/embabel-agent",
+     "branch": "main",
+     "note": "The agent framework; realm-github-actions test fixture"
+    },
+    {
+     "id": "actionswatch:rod_assistant:embabel/embabel-agent-examples",
+     "repo": "embabel/embabel-agent-examples",
+     "branch": "main",
+     "note": "Examples for the agent framework"
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 12,
+    "externalCalls": 0,
+    "cacheHit": true
+   }
+  },
+  "view:ActionsBrokenMains:{\"all\":true,\"since\":\"2026-09-09T17:05:08Z\"}": {
+   "executionId": "exec_be389a4c-0d7e-4f22-b505-a51099f4dbd7",
+   "operationId": "ActionsBrokenMains",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "repo": "embabel/embabel-agent",
+     "branch": "main",
+     "workflow": "dynamic: dependabot",
+     "latestConclusion": "failure",
+     "latestAt": "2026-09-22T20:11:59Z",
+     "latestTitle": "maven in /embabel-agent-autoconfigure/models/embabel-agent-byok-autoconfigure, /embabel-agent-autoconfigure/models/embabel-agent-dashscope-autoconfigure, /embabel-agent-cache, /embabel-agent-cache/embabel-agent-cache-core, /embabel-agent-common/embabel-agent-webmvc, /embabel-agent-domain, /embabel-agent-mcp, /embabel-agent-mcp/embabel-agent-mcp-security, /embabel-agent-mcp/embabel-agent-mcpserver, /embabel-agent-observability, /embabel-agent-onnx, /embabel-agent-openai, /embabel-agent-rag, /embabel-agent...",
+     "latestActor": "dependabot[bot]",
+     "latestUrl": "https://github.com/embabel/embabel-agent/actions/runs/35778701942",
+     "lastGreenAt": null,
+     "failuresInWindow": 9
+    },
+    {
+     "repo": "embabel/embabel-agent",
+     "branch": "main",
+     "workflow": "Build",
+     "latestConclusion": "success",
+     "latestAt": "2026-09-23T03:48:08Z",
+     "latestTitle": "A locally served model is usable when it appears, not after a restart\u2026",
+     "latestActor": "jasperblues",
+     "latestUrl": "https://github.com/embabel/embabel-agent/actions/runs/35815771502",
+     "lastGreenAt": "2026-09-23T03:48:08Z",
+     "failuresInWindow": 0
+    },
+    {
+     "repo": "embabel/embabel-agent",
+     "branch": "main",
+     "workflow": "Dependabot Insights",
+     "latestConclusion": "success",
+     "latestAt": "2026-09-16T02:25:55Z",
+     "latestTitle": "Dependabot Insights",
+     "latestActor": "igordayen",
+     "latestUrl": "https://github.com/embabel/embabel-agent/actions/runs/35047954135",
+     "lastGreenAt": "2026-09-16T02:25:55Z",
+     "failuresInWindow": 0
+    },
+    {
+     "repo": "embabel/embabel-agent",
+     "branch": "main",
+     "workflow": "Deploy Snapshots",
+     "latestConclusion": "success",
+     "latestAt": "2026-09-23T04:16:34Z",
+     "latestTitle": "Deploy Snapshots",
+     "latestActor": "jasperblues",
+     "latestUrl": "https://github.com/embabel/embabel-agent/actions/runs/35817673621",
+     "lastGreenAt": "2026-09-23T04:16:34Z",
+     "failuresInWindow": 0
+    },
+    {
+     "repo": "embabel/embabel-agent",
+     "branch": "main",
+     "workflow": "Publish Docs",
+     "latestConclusion": "success",
+     "latestAt": "2026-09-23T04:16:29Z",
+     "latestTitle": "publish-docs",
+     "latestActor": "alexheifetz",
+     "latestUrl": "https://github.com/embabel/embabel-agent/actions/runs/35817668212",
+     "lastGreenAt": "2026-09-23T04:16:29Z",
+     "failuresInWindow": 0
+    },
+    {
+     "repo": "embabel/embabel-agent",
+     "branch": "main",
+     "workflow": "dynamic: dependency-graph",
+     "latestConclusion": "success",
+     "latestAt": "2026-09-23T03:48:06Z",
+     "latestTitle": "Automatic Dependency Submission (Maven)",
+     "latestActor": "github-advanced-security[bot]",
+     "latestUrl": "https://github.com/embabel/embabel-agent/actions/runs/35815770184",
+     "lastGreenAt": "2026-09-23T03:48:06Z",
+     "failuresInWindow": 0
+    },
+    {
+     "repo": "embabel/embabel-agent-examples",
+     "branch": "main",
+     "workflow": "Build",
+     "latestConclusion": "success",
+     "latestAt": "2026-09-23T04:23:33Z",
+     "latestTitle": "agent-snapshots-deployed",
+     "latestActor": "alexheifetz",
+     "latestUrl": "https://github.com/embabel/embabel-agent-examples/actions/runs/35818143360",
+     "lastGreenAt": "2026-09-23T04:23:33Z",
+     "failuresInWindow": 0
+    },
+    {
+     "repo": "embabel/embabel-agent-examples",
+     "branch": "main",
+     "workflow": "Deploy Snapshots",
+     "latestConclusion": "success",
+     "latestAt": "2026-09-23T04:24:32Z",
+     "latestTitle": "Deploy Snapshots",
+     "latestActor": "alexheifetz",
+     "latestUrl": "https://github.com/embabel/embabel-agent-examples/actions/runs/35818209180",
+     "lastGreenAt": "2026-09-23T04:24:32Z",
+     "failuresInWindow": 0
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 6135,
+    "externalCalls": 4,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsBrokenPullRequests:{\"limit\":100,\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_c3caad29-40ec-47bd-bb3d-fb9a2f0f8053",
+   "operationId": "ActionsBrokenPullRequests",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "EMPTY",
+   "outputType": "rows",
+   "data": [],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 1410,
+    "externalCalls": 2,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsRunCount:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_5c324638-f6e1-4ec5-aaf1-7d16e091eabe",
+   "operationId": "ActionsRunCount",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "runs": 133,
+     "completed": 133,
+     "succeeded": 123,
+     "failed": 10,
+     "cancelled": 0,
+     "successRatePct": 92.5
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 26511,
+    "externalCalls": 31,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsSlowestRuns:{\"limit\":1,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_dd83db2b-40ad-4cd9-86e5-a5f3cf06cb27",
+   "operationId": "ActionsSlowestRuns",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "runId": 35879882435,
+     "workflow": "Build",
+     "title": "docs: tighten decision model evidence",
+     "branch": "feature/2049-typed-decisions",
+     "conclusion": "success",
+     "runMinutes": 31.1,
+     "runSeconds": 1867,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-23T15:12:51Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435"
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 26334,
+    "externalCalls": 31,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsWorkflowSummary:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_15581cd2-1f31-4951-aee9-f9195dbb26f2",
+   "operationId": "ActionsWorkflowSummary",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "workflow": "dynamic: dependabot",
+     "runs": 3,
+     "succeeded": 0,
+     "failed": 3,
+     "cancelled": 0,
+     "failureRatePct": 100.0,
+     "avgRunMinutes": 0.9,
+     "longestRunMinutes": 1.3,
+     "avgQueueSeconds": 0.0
+    },
+    {
+     "workflow": "Build",
+     "runs": 82,
+     "succeeded": 75,
+     "failed": 7,
+     "cancelled": 0,
+     "failureRatePct": 8.5,
+     "avgRunMinutes": 22.4,
+     "longestRunMinutes": 31.1,
+     "avgQueueSeconds": 0.0
+    },
+    {
+     "workflow": "dynamic: dependency-graph",
+     "runs": 35,
+     "succeeded": 35,
+     "failed": 0,
+     "cancelled": 0,
+     "failureRatePct": 0.0,
+     "avgRunMinutes": 0.9,
+     "longestRunMinutes": 2.0,
+     "avgQueueSeconds": 4.0
+    },
+    {
+     "workflow": "Deploy Snapshots",
+     "runs": 7,
+     "succeeded": 7,
+     "failed": 0,
+     "cancelled": 0,
+     "failureRatePct": 0.0,
+     "avgRunMinutes": 7.8,
+     "longestRunMinutes": 9.3,
+     "avgQueueSeconds": 0.0
+    },
+    {
+     "workflow": "Publish Docs",
+     "runs": 6,
+     "succeeded": 6,
+     "failed": 0,
+     "cancelled": 0,
+     "failureRatePct": 0.0,
+     "avgRunMinutes": 2.0,
+     "longestRunMinutes": 2.2,
+     "avgQueueSeconds": 0.0
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 25061,
+    "externalCalls": 31,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsDailyRuns:{\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_42ca68b7-6e07-4f83-9ea6-cfed4d825a1a",
+   "operationId": "ActionsDailyRuns",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "day": "2026-09-17",
+     "runs": 7,
+     "failed": 2,
+     "succeeded": 5,
+     "avgRunMinutes": 12.4
+    },
+    {
+     "day": "2026-09-18",
+     "runs": 29,
+     "failed": 4,
+     "succeeded": 25,
+     "avgRunMinutes": 13.3
+    },
+    {
+     "day": "2026-09-20",
+     "runs": 9,
+     "failed": 0,
+     "succeeded": 9,
+     "avgRunMinutes": 13.9
+    },
+    {
+     "day": "2026-09-21",
+     "runs": 34,
+     "failed": 1,
+     "succeeded": 33,
+     "avgRunMinutes": 15.0
+    },
+    {
+     "day": "2026-09-22",
+     "runs": 29,
+     "failed": 1,
+     "succeeded": 28,
+     "avgRunMinutes": 14.8
+    },
+    {
+     "day": "2026-09-23",
+     "runs": 25,
+     "failed": 2,
+     "succeeded": 23,
+     "avgRunMinutes": 16.0
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 73,
+    "externalCalls": 0,
+    "cacheHit": true
+   }
+  },
+  "view:ActionsSlowestRuns:{\"limit\":15,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_0beb6f7e-6a8d-4cb8-9f87-ca28ec56ac98",
+   "operationId": "ActionsSlowestRuns",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "runId": 35879882435,
+     "workflow": "Build",
+     "title": "docs: tighten decision model evidence",
+     "branch": "feature/2049-typed-decisions",
+     "conclusion": "success",
+     "runMinutes": 31.1,
+     "runSeconds": 1867,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-23T15:12:51Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435"
+    },
+    {
+     "runId": 35882400854,
+     "workflow": "Build",
+     "title": "docs: clarify optional decision provenance",
+     "branch": "feature/2049-typed-decisions",
+     "conclusion": "success",
+     "runMinutes": 31.1,
+     "runSeconds": 1866,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-23T15:33:12Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35882400854"
+    },
+    {
+     "runId": 35703978620,
+     "workflow": "Build",
+     "title": "Ask the runner, so a locally served model is usable when it appears",
+     "branch": "feat/local-models-resolve-per-call",
+     "conclusion": "success",
+     "runMinutes": 29.3,
+     "runSeconds": 1757,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-22T08:17:11Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35703978620"
+    },
+    {
+     "runId": 35879888788,
+     "workflow": "Build",
+     "title": "Prototype: Add experimental typed decision models",
+     "branch": "feature/2049-typed-decisions",
+     "conclusion": "success",
+     "runMinutes": 29.2,
+     "runSeconds": 1751,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-23T15:12:55Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879888788"
+    },
+    {
+     "runId": 35783054596,
+     "workflow": "Build",
+     "title": "Send a node its own model name, and move local models into a subpackage",
+     "branch": "feat/local-models-resolve-per-call",
+     "conclusion": "success",
+     "runMinutes": 29.2,
+     "runSeconds": 1750,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-22T20:52:09Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35783054596"
+    },
+    {
+     "runId": 35778528021,
+     "workflow": "Build",
+     "title": "fix: honor nested Jackson annotations in tool schemas (#1940)",
+     "branch": "main",
+     "conclusion": "success",
+     "runMinutes": 29.2,
+     "runSeconds": 1749,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-22T20:10:23Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35778528021"
+    },
+    {
+     "runId": 35564861353,
+     "workflow": "Build",
+     "title": "The embedding placeholder names both causes instead of asserting the \u2026",
+     "branch": "fix/embedding-placeholder-message-overclaims-key",
+     "conclusion": "success",
+     "runMinutes": 29.2,
+     "runSeconds": 1749,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-21T05:31:52Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35564861353"
+    },
+    {
+     "runId": 35561915959,
+     "workflow": "Build",
+     "title": "Say the fallback once, and pick the provider column deterministically",
+     "branch": "feat/embedding-roles-per-call-resolution",
+     "conclusion": "success",
+     "runMinutes": 29.1,
+     "runSeconds": 1745,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-21T04:40:58Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35561915959"
+    },
+    {
+     "runId": 35888277127,
+     "workflow": "Build",
+     "title": "fix: close decision configuration reliability gaps",
+     "branch": "feature/2049-typed-decisions",
+     "conclusion": "success",
+     "runMinutes": 29.0,
+     "runSeconds": 1741,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-23T16:22:20Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35888277127"
+    },
+    {
+     "runId": 35802853112,
+     "workflow": "Build",
+     "title": "Surface Ollama's native reasoning as thinking blocks",
+     "branch": "fix/ollama-native-thinking",
+     "conclusion": "success",
+     "runMinutes": 29.0,
+     "runSeconds": 1740,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-23T00:37:17Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35802853112"
+    },
+    {
+     "runId": 35389980288,
+     "workflow": "Build",
+     "title": "Let the deployment default LLM name a role (#2031)",
+     "branch": "2031-default-llm-as-role",
+     "conclusion": "success",
+     "runMinutes": 29.0,
+     "runSeconds": 1740,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-18T20:10:18Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35389980288"
+    },
+    {
+     "runId": 35368508476,
+     "workflow": "Build",
+     "title": "Logging addition and fix unmodifiable collection",
+     "branch": "fix/openai-compatible-http-client-customizer",
+     "conclusion": "success",
+     "runMinutes": 28.9,
+     "runSeconds": 1735,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-18T16:26:43Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35368508476"
+    },
+    {
+     "runId": 35748979625,
+     "workflow": "Build",
+     "title": "Fix: apply OpenAiHttpClientBuilderCustomizer in OpenAiCompatibleModel\u2026",
+     "branch": "main",
+     "conclusion": "success",
+     "runMinutes": 28.8,
+     "runSeconds": 1727,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-22T15:40:15Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35748979625"
+    },
+    {
+     "runId": 35548264633,
+     "workflow": "Build",
+     "title": "Moved SpringRestClientA2AHttpClient to proper package and inclease co\u2026",
+     "branch": "feature/a2a-multi-agent-tracing",
+     "conclusion": "success",
+     "runMinutes": 28.8,
+     "runSeconds": 1725,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-21T00:37:01Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35548264633"
+    },
+    {
+     "runId": 35882408202,
+     "workflow": "Build",
+     "title": "Prototype: Add experimental typed decision models",
+     "branch": "feature/2049-typed-decisions",
+     "conclusion": "success",
+     "runMinutes": 28.7,
+     "runSeconds": 1723,
+     "queueSeconds": 0,
+     "createdAt": "2026-09-23T15:33:15Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35882408202"
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 25670,
+    "externalCalls": 31,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsFailedRuns:{\"limit\":50,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_260d866c-5a73-454b-a373-8a6d0d62e579",
+   "operationId": "ActionsFailedRuns",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "runId": 35824536097,
+     "workflow": "Build",
+     "title": "Prototype: Add experimental typed decision models",
+     "branch": "feature/2049-typed-decisions",
+     "event": "pull_request",
+     "attempt": 1,
+     "actor": "jimador",
+     "createdAt": "2026-09-23T05:56:55Z",
+     "runMinutes": 22.8,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35824536097"
+    },
+    {
+     "runId": 35824507595,
+     "workflow": "Build",
+     "title": "fix: share TypeSafe origin validation",
+     "branch": "feature/2049-typed-decisions",
+     "event": "push",
+     "attempt": 1,
+     "actor": "jimador",
+     "createdAt": "2026-09-23T05:56:31Z",
+     "runMinutes": 22.2,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35824507595"
+    },
+    {
+     "runId": 35778701942,
+     "workflow": "dynamic: dependabot",
+     "title": "maven in /embabel-agent-autoconfigure/models/embabel-agent-byok-autoconfigure, /embabel-agent-autoconfigure/models/embabel-agent-dashscope-autoconfigure, /embabel-agent-cache, /embabel-agent-cache/embabel-agent-cache-core, /embabel-agent-common/embabel-agent-webmvc, /embabel-agent-domain, /embabel-agent-mcp, /embabel-agent-mcp/embabel-agent-mcp-security, /embabel-agent-mcp/embabel-agent-mcpserver, /embabel-agent-observability, /embabel-agent-onnx, /embabel-agent-openai, /embabel-agent-rag, /embabel-agent...",
+     "branch": "main",
+     "event": "dynamic",
+     "attempt": 1,
+     "actor": "dependabot[bot]",
+     "createdAt": "2026-09-22T20:11:59Z",
+     "runMinutes": 1.3,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35778701942"
+    },
+    {
+     "runId": 35663017684,
+     "workflow": "dynamic: dependabot",
+     "title": "maven in /embabel-agent-autoconfigure/models/embabel-agent-byok-autoconfigure, /embabel-agent-autoconfigure/models/embabel-agent-dashscope-autoconfigure, /embabel-agent-cache, /embabel-agent-cache/embabel-agent-cache-core, /embabel-agent-common/embabel-agent-webmvc, /embabel-agent-domain, /embabel-agent-mcp, /embabel-agent-mcp/embabel-agent-mcp-security, /embabel-agent-mcp/embabel-agent-mcpserver, /embabel-agent-observability, /embabel-agent-onnx, /embabel-agent-openai, /embabel-agent-rag, /embabel-agent...",
+     "branch": "main",
+     "event": "dynamic",
+     "attempt": 1,
+     "actor": "dependabot[bot]",
+     "createdAt": "2026-09-21T22:30:25Z",
+     "runMinutes": 0.7,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35663017684"
+    },
+    {
+     "runId": 35402111704,
+     "workflow": "Build",
+     "title": "Let the deployment default LLM name a role (#2031)",
+     "branch": "2031-default-llm-as-role",
+     "event": "pull_request",
+     "attempt": 1,
+     "actor": "jasperblues",
+     "createdAt": "2026-09-18T22:34:02Z",
+     "runMinutes": 5.2,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35402111704"
+    },
+    {
+     "runId": 35402107033,
+     "workflow": "Build",
+     "title": "Move the shipped default LLM off gpt-4.1-mini",
+     "branch": "2031-default-llm-as-role",
+     "event": "push",
+     "attempt": 1,
+     "actor": "jasperblues",
+     "createdAt": "2026-09-18T22:33:58Z",
+     "runMinutes": 5.2,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35402107033"
+    },
+    {
+     "runId": 35366589806,
+     "workflow": "Build",
+     "title": "Fix: apply OpenAiHttpClientBuilderCustomizer in OpenAiCompatibleModelFactory",
+     "branch": "fix/openai-compatible-http-client-customizer",
+     "event": "pull_request",
+     "attempt": 1,
+     "actor": "igordayen",
+     "createdAt": "2026-09-18T16:07:37Z",
+     "runMinutes": 9.1,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35366589806"
+    },
+    {
+     "runId": 35366582317,
+     "workflow": "Build",
+     "title": "Make collection immutable",
+     "branch": "fix/openai-compatible-http-client-customizer",
+     "event": "push",
+     "attempt": 1,
+     "actor": "igordayen",
+     "createdAt": "2026-09-18T16:07:32Z",
+     "runMinutes": 11.4,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35366582317"
+    },
+    {
+     "runId": 35247579316,
+     "workflow": "dynamic: dependabot",
+     "title": "maven in /embabel-agent-autoconfigure/models/embabel-agent-byok-autoconfigure, /embabel-agent-autoconfigure/models/embabel-agent-dashscope-autoconfigure, /embabel-agent-cache, /embabel-agent-cache/embabel-agent-cache-core, /embabel-agent-common/embabel-agent-webmvc, /embabel-agent-domain, /embabel-agent-mcp, /embabel-agent-mcp/embabel-agent-mcp-security, /embabel-agent-mcp/embabel-agent-mcpserver, /embabel-agent-observability, /embabel-agent-onnx, /embabel-agent-openai, /embabel-agent-rag, /embabel-agent...",
+     "branch": "main",
+     "event": "dynamic",
+     "attempt": 1,
+     "actor": "dependabot[bot]",
+     "createdAt": "2026-09-17T16:36:00Z",
+     "runMinutes": 0.7,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35247579316"
+    },
+    {
+     "runId": 35205827174,
+     "workflow": "Build",
+     "title": "Fix: persist immediate agent termination and emit lifecycle event",
+     "branch": "fix/immediate-termination-persistence",
+     "event": "pull_request",
+     "attempt": 1,
+     "actor": "arnabnandy7",
+     "createdAt": "2026-09-17T09:34:12Z",
+     "runMinutes": 9.0,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35205827174"
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 26659,
+    "externalCalls": 31,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsFailingSteps:{\"repo\":\"embabel/embabel-agent\",\"runs\":25,\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_3280399a-16a9-48fd-8c27-880402c4c4c7",
+   "operationId": "ActionsFailingSteps",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "workflow": "Build",
+     "job": "build (ubuntu-latest)",
+     "step": "Build and test",
+     "failures": 4,
+     "runsAffected": 4,
+     "exampleRuns": [
+      "https://github.com/embabel/embabel-agent/actions/runs/35402111704",
+      "https://github.com/embabel/embabel-agent/actions/runs/35402107033",
+      "https://github.com/embabel/embabel-agent/actions/runs/35366589806"
+     ]
+    },
+    {
+     "workflow": "dynamic: dependabot",
+     "job": "Dependabot",
+     "step": "Run Dependabot",
+     "failures": 3,
+     "runsAffected": 3,
+     "exampleRuns": [
+      "https://github.com/embabel/embabel-agent/actions/runs/35778701942",
+      "https://github.com/embabel/embabel-agent/actions/runs/35663017684",
+      "https://github.com/embabel/embabel-agent/actions/runs/35247579316"
+     ]
+    },
+    {
+     "workflow": "Build",
+     "job": "build (ubuntu-latest)",
+     "step": "Linux-specific setup and SonarCloud analysis",
+     "failures": 2,
+     "runsAffected": 2,
+     "exampleRuns": [
+      "https://github.com/embabel/embabel-agent/actions/runs/35824536097",
+      "https://github.com/embabel/embabel-agent/actions/runs/35824507595"
+     ]
+    },
+    {
+     "workflow": "Build",
+     "job": "build-fork",
+     "step": "Build and test",
+     "failures": 1,
+     "runsAffected": 1,
+     "exampleRuns": [
+      "https://github.com/embabel/embabel-agent/actions/runs/35205827174"
+     ]
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 31853,
+    "externalCalls": 41,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsSlowestJobs:{\"limit\":10,\"repo\":\"embabel/embabel-agent\",\"runs\":8,\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_666a34f7-fdf7-45e5-b597-83f659ffc64e",
+   "operationId": "ActionsSlowestJobs",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "jobId": 107245292218,
+     "job": "build (ubuntu-latest)",
+     "conclusion": "success",
+     "jobMinutes": 31.0,
+     "jobSeconds": 1862,
+     "runId": 35879882435,
+     "workflow": "Build",
+     "branch": "feature/2049-typed-decisions",
+     "runMinutes": 31.1,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107245292218"
+    },
+    {
+     "jobId": 107253887507,
+     "job": "build (ubuntu-latest)",
+     "conclusion": "success",
+     "jobMinutes": 31.0,
+     "jobSeconds": 1862,
+     "runId": 35882400854,
+     "workflow": "Build",
+     "branch": "feature/2049-typed-decisions",
+     "runMinutes": 31.1,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35882400854/job/107253887507"
+    },
+    {
+     "jobId": 106668358877,
+     "job": "build (ubuntu-latest)",
+     "conclusion": "success",
+     "jobMinutes": 29.2,
+     "jobSeconds": 1753,
+     "runId": 35703978620,
+     "workflow": "Build",
+     "branch": "feat/local-models-resolve-per-call",
+     "runMinutes": 29.3,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35703978620/job/106668358877"
+    },
+    {
+     "jobId": 107245314897,
+     "job": "build (ubuntu-latest)",
+     "conclusion": "success",
+     "jobMinutes": 29.2,
+     "jobSeconds": 1749,
+     "runId": 35879888788,
+     "workflow": "Build",
+     "branch": "feature/2049-typed-decisions",
+     "runMinutes": 29.2,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879888788/job/107245314897"
+    },
+    {
+     "jobId": 106933035854,
+     "job": "build (ubuntu-latest)",
+     "conclusion": "success",
+     "jobMinutes": 29.1,
+     "jobSeconds": 1747,
+     "runId": 35783054596,
+     "workflow": "Build",
+     "branch": "feat/local-models-resolve-per-call",
+     "runMinutes": 29.2,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35783054596/job/106933035854"
+    },
+    {
+     "jobId": 106224567409,
+     "job": "build (ubuntu-latest)",
+     "conclusion": "success",
+     "jobMinutes": 29.1,
+     "jobSeconds": 1746,
+     "runId": 35564861353,
+     "workflow": "Build",
+     "branch": "fix/embedding-placeholder-message-overclaims-key",
+     "runMinutes": 29.2,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35564861353/job/106224567409"
+    },
+    {
+     "jobId": 106216265011,
+     "job": "build (ubuntu-latest)",
+     "conclusion": "success",
+     "jobMinutes": 29.0,
+     "jobSeconds": 1741,
+     "runId": 35561915959,
+     "workflow": "Build",
+     "branch": "feat/embedding-roles-per-call-resolution",
+     "runMinutes": 29.1,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35561915959/job/106216265011"
+    },
+    {
+     "jobId": 106917770070,
+     "job": "build (ubuntu-latest)",
+     "conclusion": "success",
+     "jobMinutes": 28.4,
+     "jobSeconds": 1703,
+     "runId": 35778528021,
+     "workflow": "Build",
+     "branch": "main",
+     "runMinutes": 29.2,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35778528021/job/106917770070"
+    },
+    {
+     "jobId": 107245314431,
+     "job": "build (windows-latest)",
+     "conclusion": "success",
+     "jobMinutes": 25.7,
+     "jobSeconds": 1541,
+     "runId": 35879888788,
+     "workflow": "Build",
+     "branch": "feature/2049-typed-decisions",
+     "runMinutes": 29.2,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879888788/job/107245314431"
+    },
+    {
+     "jobId": 107253887247,
+     "job": "build (windows-latest)",
+     "conclusion": "success",
+     "jobMinutes": 21.5,
+     "jobSeconds": 1291,
+     "runId": 35882400854,
+     "workflow": "Build",
+     "branch": "feature/2049-typed-decisions",
+     "runMinutes": 31.1,
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35882400854/job/107253887247"
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 5779,
+    "externalCalls": 8,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsPassedOnRetry:{\"limit\":30,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-08-24T17:05:08Z\"}": {
+   "executionId": "exec_06c6ee86-4d8d-432b-b9ad-8519f6777fce",
+   "operationId": "ActionsPassedOnRetry",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "runId": 35888274691,
+     "workflow": "dynamic: dependency-graph",
+     "title": "Automatic Dependency Submission (Maven)",
+     "branch": "feature/2049-typed-decisions",
+     "attempts": 2,
+     "actor": "github-advanced-security[bot]",
+     "createdAt": "2026-09-23T16:22:19Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35888274691"
+    },
+    {
+     "runId": 35049849230,
+     "workflow": "Build",
+     "title": "Fix(security): upgrade Netty to 4.2.17.Final",
+     "branch": "fix/netty-CVE-GHSA-c4c3-7fpv-j4q5",
+     "attempts": 2,
+     "actor": "igordayen",
+     "createdAt": "2026-09-16T02:55:37Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35049849230"
+    },
+    {
+     "runId": 33902285387,
+     "workflow": "Build",
+     "title": "\"Ordering now mirrors doSave, which checkpoints before registering, s\u2026",
+     "branch": "feat/fix-delete-ordering",
+     "attempts": 2,
+     "actor": "alexheifetz",
+     "createdAt": "2026-09-04T17:45:44Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/33902285387"
+    },
+    {
+     "runId": 33643560240,
+     "workflow": "Build",
+     "title": "feature: support entity-only result selection (#1979)",
+     "branch": "main",
+     "attempts": 2,
+     "actor": "igordayen",
+     "createdAt": "2026-09-02T14:40:18Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/33643560240"
+    },
+    {
+     "runId": 32941260186,
+     "workflow": "Build",
+     "title": "Configure nested Jinjava interpretation",
+     "branch": "fix/disableNestedInterpretation",
+     "attempts": 2,
+     "actor": "arnabnandy7",
+     "createdAt": "2026-08-26T07:07:45Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/32941260186"
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 25113,
+    "externalCalls": 31,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsFlakyJobs:{\"repo\":\"embabel/embabel-agent\",\"runs\":20,\"since\":\"2026-08-24T17:05:08Z\"}": {
+   "executionId": "exec_ca70b2ec-f30c-4658-a5b2-2cfb13aaa289",
+   "operationId": "ActionsFlakyJobs",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "job": "build (ubuntu-latest)",
+     "timesFlaked": 3,
+     "workflow": "Build",
+     "exampleRuns": [
+      "https://github.com/embabel/embabel-agent/actions/runs/35049849230",
+      "https://github.com/embabel/embabel-agent/actions/runs/33902285387",
+      "https://github.com/embabel/embabel-agent/actions/runs/33643560240"
+     ]
+    },
+    {
+     "job": "build-fork",
+     "timesFlaked": 1,
+     "workflow": "Build",
+     "exampleRuns": [
+      "https://github.com/embabel/embabel-agent/actions/runs/32941260186"
+     ]
+    },
+    {
+     "job": "submit-maven",
+     "timesFlaked": 1,
+     "workflow": "dynamic: dependency-graph",
+     "exampleRuns": [
+      "https://github.com/embabel/embabel-agent/actions/runs/35888274691"
+     ]
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 28652,
+    "externalCalls": 36,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsFailureThemes:{\"count\":5,\"repo\":\"embabel/embabel-agent\",\"runs\":20,\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_8e13c98d-0730-4bac-ab4e-33ceb66d928b",
+   "operationId": "ActionsFailureThemes",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "themes": [
+      "Dependency Update Failures (Dependabot errors)",
+      "Build Step Failures (Build and test repeatedly failing at build steps)",
+      "Configuration Issues (Errors in setup or environment configuration)",
+      "Permission or Access Errors (Write access or permission related issues with repo)",
+      "Code-Related Failures (Failures related to specific code or testing failures)"
+     ]
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 8980,
+    "externalCalls": 10,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsBriefing:{\"repo\":\"embabel/embabel-agent\",\"runs\":15,\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_dc34c9fb-02b1-46d1-b9c9-da76170bec3f",
+   "operationId": "ActionsBriefing",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "briefing": "The CI system is generally healthy, with four of five workflows having 0% failure rate. However, the \"Build\" workflow has an 8.5% failure rate (7/82), the highest among the group, and includes failures at \"build (ubuntu-latest)\" and \"build-fork\" jobs during \"Build and test\" steps, totaling 7 failures. \"dynamic: dependabot\" is the most failure-prone overall, with a 100% failure rate (3/3), all at the \"Run Dependabot\" step. The \"Build\" workflow also has the longest average runtime at 22.4 minutes. Since \"Build\" and \"dynamic: dependabot\" both show failures in their key steps, the immediate focus should be on the \"Build\" workflow\u2019s \"Build and test\" step and the \"dynamic: dependabot\" step \"Run Dependabot\" to identify underlying issues affecting reliability and performance."
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 13152,
+    "externalCalls": 15,
+    "cacheHit": null
+   }
+  },
+  "view:ActionsRunCount:{\"days\":7,\"repo\":\"embabel/embabel-agent\",\"since\":\"2026-09-16T17:05:08Z\"}": {
+   "executionId": "exec_50f744aa-b03e-4f72-85a4-d63dd8078013",
+   "operationId": "ActionsRunCount",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "runs": 133,
+     "completed": 133,
+     "succeeded": 123,
+     "failed": 10,
+     "cancelled": 0,
+     "successRatePct": 92.5
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 84,
+    "externalCalls": 0,
+    "cacheHit": true
+   }
+  },
+  "view:ActionsRunJobs:{\"repo\":\"embabel/embabel-agent\",\"runId\":35879882435,\"since\":\"2026-09-23T15:12:51Z\"}": {
+   "executionId": "exec_457c897d-98b4-4664-8522-0b136d3818af",
+   "operationId": "ActionsRunJobs",
+   "contractVersion": "1",
+   "status": "SUCCEEDED",
+   "outcome": "OK",
+   "outputType": "rows",
+   "data": [
+    {
+     "jobId": 107245292218,
+     "job": "build (ubuntu-latest)",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "success",
+     "runMinutes": 31.0,
+     "jobSeconds": 1862,
+     "failedSteps": [],
+     "steps": 9,
+     "runner": "GitHub Actions 1000060968",
+     "startedAt": "2026-09-23T15:12:54Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107245292218"
+    },
+    {
+     "jobId": 107245292524,
+     "job": "build (windows-latest)",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "success",
+     "runMinutes": 20.3,
+     "jobSeconds": 1217,
+     "failedSteps": [],
+     "steps": 9,
+     "runner": "GitHub Actions 1000060970",
+     "startedAt": "2026-09-23T15:12:54Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107245292524"
+    },
+    {
+     "jobId": 107245292512,
+     "job": "detect-changes",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "success",
+     "runMinutes": 0.2,
+     "jobSeconds": 9,
+     "failedSteps": [],
+     "steps": 5,
+     "runner": "GitHub Actions 1000060969",
+     "startedAt": "2026-09-23T15:12:54Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107245292512"
+    },
+    {
+     "jobId": 107258346755,
+     "job": "notify",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "skipped",
+     "runMinutes": 0.0,
+     "jobSeconds": 0,
+     "failedSteps": [],
+     "steps": 0,
+     "runner": null,
+     "startedAt": "2026-09-23T15:43:57Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107258346755"
+    },
+    {
+     "jobId": 107245294190,
+     "job": "build-fork",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "skipped",
+     "runMinutes": 0.0,
+     "jobSeconds": 0,
+     "failedSteps": [],
+     "steps": 0,
+     "runner": null,
+     "startedAt": "2026-09-23T15:12:52Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107245294190"
+    },
+    {
+     "jobId": 107258346735,
+     "job": "notify-recovery",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "skipped",
+     "runMinutes": 0.0,
+     "jobSeconds": 0,
+     "failedSteps": [],
+     "steps": 0,
+     "runner": null,
+     "startedAt": "2026-09-23T15:43:57Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107258346735"
+    },
+    {
+     "jobId": 107258346668,
+     "job": "trigger-docs",
+     "attempt": 1,
+     "status": "completed",
+     "conclusion": "skipped",
+     "runMinutes": 0.0,
+     "jobSeconds": 0,
+     "failedSteps": [],
+     "steps": 0,
+     "runner": null,
+     "startedAt": "2026-09-23T15:43:57Z",
+     "url": "https://github.com/embabel/embabel-agent/actions/runs/35879882435/job/107258346668"
+    }
+   ],
+   "warnings": [],
+   "error": null,
+   "metrics": {
+    "durationMs": 1114,
+    "externalCalls": 2,
+    "cacheHit": null
+   }
+  }
+ }
+}
