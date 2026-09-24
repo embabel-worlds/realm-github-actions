@@ -98,6 +98,10 @@ test('renders every panel from the fixtures, drives every path, no console error
   // overview
   await expect(page.locator('#p-overview tbody tr')).toHaveCount(rowsOf(fx('ActionsWorkflowSummary', { repo: REPO, since: SINCE })).length);
   await expect(page.locator('#p-overview .bar')).toHaveCount(rowsOf(fx('ActionsDailyRuns', { repo: REPO, since: SINCE })).length);
+  // what broke main: one row per red workflow, or the green note
+  const broke = rowsOf(fx('ActionsWhatBroke', { repo: REPO, branch: 'main' }));
+  if (broke.length) await expect(page.locator('#whatBroke [data-what-broke]')).toHaveCount(broke.length);
+  else await expect(page.locator('#whatBroke .empty')).toContainText('green');
   // runs + drill into the first slowest run's jobs
   await page.click('nav [data-tab="runs"]');
   await expect(page.locator('#p-runs')).toHaveClass(/on/);
@@ -107,7 +111,15 @@ test('renders every panel from the fixtures, drives every path, no console error
   await page.locator('#p-runs tr.pick').first().click();
   const jobs = rowsOf(fx('ActionsRunJobs', { repo: REPO, runId: slowest[0].runId }));
   await expect(page.locator('#drawer tbody tr')).toHaveCount(jobs.length);
-  await expect(page.locator('#drawer h3')).toContainText('Run ' + slowest[0].runId);
+  await expect(page.locator('#drawer h3').first()).toContainText('Run ' + slowest[0].runId);
+  // a failed run offers "How to fix this", and the lens's hint renders with its sources and error lines
+  await page.locator('#p-runs tr.pick[data-run="' + failed[0].runId + '"]').first().click();
+  await expect(page.locator('#fixGo')).toBeVisible();
+  await page.click('#fixGo');
+  const lensKey = 'lens:resolve-failure:' + JSON.stringify(Object.fromEntries(Object.entries({ repo: REPO, runId: failed[0].runId }).sort()));
+  const lensEnv = fixtures.envelopes[lensKey]; const lensJobs = (lensEnv && lensEnv.data && lensEnv.data.jobs) || [];
+  await expect(page.locator('#fixOut [data-resolution]')).toHaveCount(lensJobs.length);
+  if (lensJobs.length) { await expect(page.locator('#fixOut .prose').first()).toContainText(lensJobs[0].hint.slice(0, 30)); await expect(page.locator('#fixOut pre').first()).toContainText((lensJobs[0].errorLines[0] || '').slice(0, 20)); }
   // failures
   await page.click('nav [data-tab="failures"]');
   const tables = page.locator('#p-failures table');
@@ -211,8 +223,8 @@ test('an empty-with-warning panel says partial, never a bare zero', async ({ pag
   const kDaily = key('ActionsDailyRuns', { repo: REPO, since: SINCE });
   env[kDaily] = { status: 'SUCCEEDED', outcome: 'OK', outputType: 'rows', data: [], warnings: ['PARTIAL_RESULT: producer runsByRepo truncated at 1000 (page cap 10)'] };
   const errors = await open(page, env);
-  await expect(page.locator('#p-overview .note')).toContainText('Partial answer');
-  await expect(page.locator('#p-overview .empty')).toContainText('No runs in the window');
+  await expect(page.locator('#p-overview .note', { hasText: 'Partial answer' })).toHaveCount(1);
+  await expect(page.locator('#p-overview .empty', { hasText: 'No runs in the window' })).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 

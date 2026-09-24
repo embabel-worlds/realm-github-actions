@@ -12,8 +12,8 @@
 <script type="application/embabel-app+json">
 {"version":1,"name":"ci-health","title":"CI Health",
  "description":"GitHub Actions CI for one repository over realm-github-actions: ask in words, run any of the realm's views with a generated form, and read the dashboard — health per workflow, trend, slowest and failed runs with their jobs, failing steps, flaky jobs, failure themes and a standup briefing. Every figure links back to GitHub.",
- "requires":{"lenses":[],"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime","ActionsByActor"],"realms":["github-actions"],"namespaces":["repository"]},
- "dependsOn":{"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime","ActionsByActor"],"realms":["github-actions"],"gateway":["kg","repository"]}}
+ "requires":{"lenses":["resolve-failure"],"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime","ActionsByActor","ActionsWhatBroke"],"realms":["github-actions"],"namespaces":["repository"]},
+ "dependsOn":{"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime","ActionsByActor","ActionsWhatBroke"],"realms":["github-actions"],"gateway":["kg","repository"]}}
 </script>
 <style>
   :root{--bg:#0a0a0f;--surface:#13131a;--surface2:#171722;--border:#1e1e2e;--cyan:#63c0f5;--green:#3fd73c;--dim:#6b7280;
@@ -197,7 +197,7 @@
   <ul>
     <li><strong>Two doors to the same runs.</strong> Completed runs never change, so every panel here — the fleet, overview, runs, failures, flaky, reading, and a run's jobs — reads <em>history</em>: the last 31 days as calendar days plus the whole previous month, closed periods cached for 400 days and today's slice for 30 minutes. The first read of a repository in a session costs the 31 day slices plus the previous month's pages (twenty to fifty seconds, once per signed-in user); every later read of any window costs at most one small call. Only <code>ActionsRecentRuns</code> reads the <em>live</em> door, with the window pushed down to GitHub's <code>created</code> filter. The views keep every filter and limit on projected variables and on a <code>WITH</code>, not on the fetch, which is what lets all of them share one cached read per repository.</li>
     <li><strong>Per user, and warmed once.</strong> The world keeps that cache per signed-in user, and two panels missing it at the same moment would each sweep GitHub. So this page reads one small view per followed repository first, one at a time, and opens the panels only when the repository is warm. The first read of a repository in a session takes twenty to fifty seconds depending on how busy it is, and says so; after that, panels answer in well under a second.</li>
-    <li><strong>Freshness.</strong> Today's slice is re-read after 30 minutes; a closed day or month after 400 days. A run's jobs are re-read after six hours, annotations after a day, workflows after six hours. A figure that disagrees with GitHub inside those windows is the cache, not a bug; the engine reports when each producer was actually read. Known edge: a run still in progress when its day closed, or re-run on a later day, keeps in history the state it had when that day was last read.</li>
+    <li><strong>Freshness.</strong> Today's slice is re-read after 30 minutes; a closed day or month after 400 days. A commit is re-read after a week. A run's jobs are re-read after six hours, annotations after a day, workflows after six hours. A figure that disagrees with GitHub inside those windows is the cache, not a bug; the engine reports when each producer was actually read. Known edge: a run still in progress when its day closed, or re-run on a later day, keeps in history the state it had when that day was last read.</li>
     <li><strong>The fleet.</strong> "Broken mains" is, per followed repository and workflow, the latest completed run on the watched branch; "broken PRs" is, per pull-request branch, the latest completed run. Both sweep every followed repository in one query through the watchlist's door.</li>
     <li><strong>Run time</strong> is <code>updated_at − run_started_at</code> on a completed run; <strong>queue time</strong> is <code>run_started_at − created_at</code>. Values arrive from GitHub as strings; the views coerce.</li>
     <li><strong>The daily watch</strong> (<code>ciWatch</code> in the realm's handlers) runs at 08:00 on weekdays once an operator adopts it, over the repositories seeded as <code>ActionsWatch</code>. It is not what this page reads.</li>
@@ -206,6 +206,8 @@
   <h3>2. The questions</h3>
   <p class="muted">Every view this page can call, with its parameters and defaults, and the Cypher the server reports it would run for the current scope — read back live when you open this section, never copied.</p>
   <div id="howViews"><div class="muted">Open this section to read the views back from the server.</div></div>
+  <div class="view"><div><code>resolve-failure</code> <span class="pill" style="color:var(--purple)">a lens, not a view · model call</span></div><p>For one failed run: the failed job's log from GitHub, the lines around the failure marker, a web search (Brave, through the research realm) for the most diagnostic line, and a model's hint grounded on those lines and pages, sources cited. Several calls and one model call per job, so it runs only when you press <em>How to fix this</em> on a failed run. The error lines and the search query are shown under the hint, so you can see exactly what it was grounded on.</p></div>
+  <p class="muted"><code>ActionsWhatBroke</code> above hops <code>BUILT</code> from the first failing run of each red workflow to the commit it built, one GitHub call per run opened, cached a week. GitHub's own dynamic workflows are left out: their "built" commit is just HEAD at the time.</p>
 
   <h3>3. When it looks wrong</h3>
   <ul>
@@ -387,6 +389,7 @@
     { re: /\b(prs?|pull[- ]requests?)\b.*\b(broken|red|failing)\b|\b(broken|red|failing)\b.*\b(prs?|pull[- ]requests?)\b/i, view: 'ActionsBrokenPullRequests', args: function (c) { return { since: c.since, limit: 100 }; }, fleet: true },
     { re: /\b(follow(ing|ed)?|watch(ing|ed|list)?)\b.*\brepos/i, view: 'ActionsWatchlist', args: function () { return {}; }, fleet: true },
     { re: /\b(average|mean|median|typical|p90)\b.*\b(build|run|ci|pipeline)\b.*\b(time|duration|long)\b|how long (do|does|are) .*\b(build|run)s?\b/i, view: 'ActionsRunTime', args: function (c) { return { repo: c.repo, since: c.since }; } },
+    { re: /\bwhat broke\b|\bwhich commit broke\b|\bwhat changed before\b|\bwho broke (the )?(build|main)\b|\bbroke main\b/i, view: 'ActionsWhatBroke', args: function (c) { return { repo: c.repo, branch: 'main' }; } },
     { re: /\bwho\b.*\b(triggered|ran|runs|started|pushed|breaks?|broke)\b|\bby (person|actor|user|developer)\b|\bper (person|actor|user|developer)\b|\bwhich (person|user|developer)\b/i, view: 'ActionsByActor', args: function (c) { return { repo: c.repo, since: c.since, limit: 25 }; } },
     { re: /\b(success|pass|failure) rate\b|how many .*\b(runs?|builds?)\b|\bcount\b.*\bruns?\b/i, view: 'ActionsRunCount', args: function (c) { return { repo: c.repo, since: c.since }; } },
     { re: /\bfails? (the )?most\b|\bmost (often|frequently)\b|\bper workflow\b|\bby workflow\b|how are (the |our )?builds|\bci health\b|\bhealth\b/i, view: 'ActionsWorkflowSummary', args: function (c) { return { repo: c.repo, since: c.since }; } },
@@ -486,6 +489,7 @@
       var w = r[0], d = r[1], html = '<h3 class="t">Per workflow</h3>' + warnBlock(w.warnings);
       html += w.rows.length ? '<div class="tablewrap"><table><thead><tr><th>Workflow</th><th class="num">Runs</th><th class="num">Failed</th><th class="num">Failure rate</th><th class="num">Avg min</th><th class="num">Longest min</th><th class="num">Avg queue s</th></tr></thead><tbody>' +
         w.rows.map(function (x) { return '<tr><td>' + esc(x.workflow) + '</td><td class="num">' + x.runs + '</td><td class="num" style="color:' + (x.failed ? 'var(--red)' : 'inherit') + '">' + x.failed + '</td><td class="num">' + x.failureRatePct + '%</td><td class="num">' + x.avgRunMinutes + '</td><td class="num">' + x.longestRunMinutes + '</td><td class="num">' + x.avgQueueSeconds + '</td></tr>'; }).join('') + '</tbody></table></div>' : empty('No completed runs in the window.');
+      html += '<h3 class="t">What broke main</h3><div id="whatBroke"><div class="muted">Reading…</div></div>';
       html += '<h3 class="t">Runs per day (UTC)</h3>' + warnBlock(d.warnings);
       if (d.rows.length) { var max = Math.max.apply(null, d.rows.map(function (x) { return x.runs; })) || 1;
         html += '<div class="bars"><div class="muted">day</div><div class="muted">green succeeded · red failed · grey other</div><div class="muted num">runs / failed</div><div class="muted num">avg min</div>' +
@@ -493,6 +497,15 @@
             return '<div>' + esc(x.day) + '</div><div class="bar" title="' + x.runs + ' runs"><div class="ok" style="width:' + ok + '%"></div><div class="ko" style="width:' + ko + '%"></div><div class="oth" style="width:' + oth + '%"></div></div><div class="num">' + x.runs + ' / ' + x.failed + '</div><div class="num">' + (x.avgRunMinutes == null ? '—' : x.avgRunMinutes) + '</div>'; }).join('') + '</div>'; }
       else html += empty('No runs in the window.');
       el.innerHTML = html;
+      whatBroke(c);
+    }).catch(function (e) { failure(el, e); });
+  }
+  function whatBroke(c) {
+    var el = $('whatBroke'); if (!el) return;
+    load('ActionsWhatBroke', { repo: c.repo, branch: 'main' }).then(function (r) {
+      if (!r.rows.length) { el.innerHTML = warnBlock(r.warnings) + '<div class="empty" style="border-color:#1f4d1e;color:var(--green)">Every workflow on main is green on its latest run, or nothing failed on main in the last 14 days.</div>'; return; }
+      el.innerHTML = warnBlock(r.warnings) + '<div class="tablewrap"><table><thead><tr><th>Workflow</th><th>Last green</th><th>First red</th><th>Commit it built</th><th>By</th><th>Files changed</th><th></th></tr></thead><tbody>' +
+        r.rows.map(function (x) { return '<tr data-what-broke><td>' + esc(x.workflow) + ' ' + pill(x.latestConclusion) + '</td><td class="muted">' + (x.lastGreenAt ? esc(String(x.lastGreenAt).replace('T', ' ').replace('Z', '')) : 'none in window') + '</td><td>' + link(x.firstRedUrl, String(x.firstRedAt).replace('T', ' ').replace('Z', '')) + '</td><td>' + esc(x.title) + ' <span class="muted">+' + x.additions + ' −' + x.deletions + '</span></td><td>' + esc(x.author || x.authorName) + '</td><td>' + (x.files || []).map(esc).join('<br>') + (x.filesChanged > (x.files || []).length ? '<br><span class="muted">… ' + (x.filesChanged - x.files.length) + ' more</span>' : '') + '</td><td>' + link(x.commitUrl, 'commit') + '</td></tr>'; }).join('') + '</tbody></table></div><p class="muted">The commit the first failing run built, after the last green run of that workflow. Click the first-red run under Runs, then "How to fix this", for the error and a resolution hint.</p>';
     }).catch(function (e) { failure(el, e); });
   }
 
@@ -514,9 +527,25 @@
     var d = $('drawer'); d.style.display = 'block'; d.innerHTML = '<h3>Run ' + runId + '</h3><div class="muted">Reading its jobs…</div>'; d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     load('ActionsRunJobs', { repo: c.repo, runId: runId }).then(function (r) {
       if (!r.rows.length) { d.innerHTML = '<h3>Run ' + runId + '</h3>' + warnBlock(r.warnings) + empty('No jobs came back — a run still queued has none; otherwise this is the lookup failing.'); return; }
+      var anyFailed = r.rows.some(function (j) { return j.conclusion === 'failure'; });
       d.innerHTML = '<h3>Run ' + runId + ' — jobs, slowest first</h3>' + warnBlock(r.warnings) + '<div class="tablewrap"><table><thead><tr><th>Job</th><th>Attempt</th><th>Result</th><th class="num">Minutes</th><th>Failed step</th><th>Runner</th><th></th></tr></thead><tbody>' +
-        r.rows.map(function (j) { return '<tr><td>' + esc(j.job) + '</td><td>#' + j.attempt + '</td><td>' + pill(j.conclusion) + '</td><td class="num">' + (j.runMinutes == null ? '—' : j.runMinutes) + '</td><td style="color:var(--red)">' + esc((j.failedSteps || []).join(', ')) + '</td><td class="muted">' + esc(j.runner || '') + '</td><td>' + link(j.url, 'log') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+        r.rows.map(function (j) { return '<tr><td>' + esc(j.job) + '</td><td>#' + j.attempt + '</td><td>' + pill(j.conclusion) + '</td><td class="num">' + (j.runMinutes == null ? '—' : j.runMinutes) + '</td><td style="color:var(--red)">' + esc((j.failedSteps || []).join(', ')) + '</td><td class="muted">' + esc(j.runner || '') + '</td><td>' + link(j.url, 'log') + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+        (anyFailed ? '<p style="margin:12px 0 0"><button class="btn" id="fixGo" data-run="' + esc(runId) + '">How to fix this</button> <span class="muted">Reads the failed job\'s log, searches the web for the error, and asks a model for a hint grounded on both. One log download, one search, one model call.</span></p><div id="fixOut"></div>' : '');
+      var fb = $('fixGo'); if (fb) fb.addEventListener('click', function () { resolveFailure(c, Number(fb.dataset.run)); });
     }).catch(function (e) { failure(d, e); });
+  }
+
+  function resolveFailure(c, runId) {
+    var out = $('fixOut'); out.innerHTML = '<div class="muted">Reading the failed job\'s log and searching for the error…</div>'; $('fixGo').disabled = true;
+    embabel.lenses.invoke('resolve-failure', { repo: c.repo, runId: runId }, { state: stateEl }).then(function (res) {
+      var d = (res && res.data && !Array.isArray(res.data)) ? res.data : (res && res.content) ? res.content : res;
+      if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) {} }
+      var jobs = (d && d.jobs) || [];
+      if (!jobs.length) { out.innerHTML = '<div class="empty">' + esc((d && d.note) || 'Nothing to resolve.') + '</div>'; return; }
+      out.innerHTML = jobs.map(function (j) { return '<div class="drawer" data-resolution><h3>' + esc(j.job) + (j.failedSteps && j.failedSteps.length ? ' — failed at ' + esc(j.failedSteps.join(', ')) : '') + '</h3><div class="prose">' + esc(j.hint) + '</div>' +
+        (j.sources && j.sources.length ? '<p class="muted" style="margin:10px 0 4px">Sources the hint could cite</p><ol style="margin:0;padding-left:22px">' + j.sources.map(function (s0) { return '<li>' + link(s0.url, s0.title || s0.url) + '</li>'; }).join('') + '</ol>' : '<p class="muted">No web page matched the error signature.</p>') +
+        '<details class="cy"><summary>the error lines the hint was grounded on (' + (j.errorLines || []).length + ' of ' + j.logLines + ' log lines) · searched: ' + esc(j.query) + '</summary><pre class="cy">' + esc((j.errorLines || []).join('\n')) + '</pre></details></div>'; }).join('');
+    }).catch(function (e) { failure(out, e); }).then(function () { var fb = $('fixGo'); if (fb) fb.disabled = false; });
   }
 
   /* ── failures ── */

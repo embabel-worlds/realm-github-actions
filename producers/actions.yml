@@ -120,6 +120,30 @@
   # progress when it was opened. The envelope reports when each run's jobs were read.
   cache: { kind: ttl, seconds: 21600, negativeTtlSeconds: 600 }
 
+# The commit ONE run built. Composite key from the run (owner, repo, head_sha) onto the three
+# path parameters; echoKeyAs stamps it back as commitKey. A commit is immutable: cached a week.
+- name: commitBySha
+  kind: remote
+  operation: repos/get-commit
+  records: "$"
+  keyArgs: [owner, repo, ref]
+  echoKeyAs: commitKey
+  batchSafe: false
+  project:
+    sha: sha
+    message: commit.message
+    authorLogin: author.login
+    authorName: commit.author.name
+    authoredAt: commit.author.date
+    additions: stats.additions
+    deletions: stats.deletions
+    files: "files[*].filename"
+    fileStatuses: "files[*].status"
+    parents: "parents[*].sha"
+    url: html_url
+  cost: { bucket: github-core, rate: 5000/hour }
+  cache: { kind: ttl, seconds: 604800, negativeTtlSeconds: 3600 }
+
 # Annotations of ONE job. A job id IS its check-run id. The CheckAnnotation join composes the
 # job's runKey (itself owner+repo+run_id) with the job id, so the composite splits into four
 # parts: owner, repo, run_id, check_run_id. run_id is not a parameter this operation declares,

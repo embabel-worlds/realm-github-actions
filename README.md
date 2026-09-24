@@ -15,6 +15,7 @@ retry, which mains are red across every repository you follow, and the paragraph
    -[:HAS_WORKFLOW]->     (Workflow)
    -[:HAS_WORKFLOW_RUN]-> (WorkflowRun) LIVE — newest first, a literal `since` pushed to GitHub's created filter
    -[:HAS_RUN_HISTORY]->  (WorkflowRun) HISTORY — 31 calendar days + the previous month, closed periods cached 400 days
+         -[:BUILT]->              (GitHubCommit)       one call per run opened, cached a week: message, author, files
          -[:HAS_JOB]->            (WorkflowJob)        one call per run, all attempts
                -[:HAS_ANNOTATION]->  (CheckAnnotation)  one call per job
 ```
@@ -28,7 +29,7 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 
 ## What's inside
 
-- `apis/` — five GitHub operations, vendored and trimmed from the official OpenAPI document
+- `apis/` — seven GitHub operations, vendored and trimmed from the official OpenAPI document
   (`scripts/trim-openapi.py`), bearer-authenticated from `GH_TOKEN`.
 - `types/` — the graph above, every hop a declared virtual join. `ActionsWatch` is the only
   stored type. Ids arrive from GitHub as strings; the types say so.
@@ -38,7 +39,13 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 - `views/` — the answer surface, one per question: `actions.yml` (counts, run time, by actor,
   summary, slowest, failed, trend, retries, workflows), `jobs.yml` (a run's jobs, slowest jobs, failing steps,
   flaky jobs), `intelligence.yml` (failure themes with `themes()`, the standup briefing with
-  `synthesize()`, both in-query), `fleet.yml` (the watchlist, broken mains, broken PRs).
+  `synthesize()`, both in-query), `fleet.yml` (the watchlist, broken mains, broken PRs, and **what broke**: per red workflow the
+  last green run, the first failing run after it, and the commit that run built with its files).
+- `lenses/resolve-failure.yml` — **how to fix this**, for one failed run: the failed job's log
+  from GitHub, the lines around the failure marker, a web search (Brave, through the research
+  realm) for the most diagnostic line, and a model's hint grounded on those lines and pages
+  with sources cited. A lens because it makes several calls and a model call; the app puts it
+  behind a button on a failed run.
 - `wasm/handlers.ts` — `ciWatch`, a weekday-morning schedule over the watchlist: what is red
   now, what failed in the last day, the longest run. Installed makes it available; an operator
   adopts it before it fires.

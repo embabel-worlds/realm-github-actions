@@ -24,6 +24,8 @@ question — each carries the exact figure and a link per row, so cite the numbe
 | builds per day, is CI getting slower | `ActionsDailyRuns` | trend |
 | brief me on CI, standup summary | `ActionsBriefing` | costs a model call; figures from the views above |
 | what workflows are there | `ActionsWorkflows` | |
+| what broke main, which commit broke the build, what changed before the failure | `ActionsWhatBroke` | per workflow red on the branch: last green, first red, the commit it built with its files |
+| how do I fix run X, why did run X fail and what should I do | lens `resolve-failure` | reads the failed job's log, searches the web, grounds a hint; costs a log download, a search and a model call |
 
 ## Windows
 
@@ -34,6 +36,6 @@ runs. When you know the dates, pass `since`. When writing Cypher yourself, filte
 
 ## What is not here
 
-No logs (the failing step name and GitHub's failure annotations are the nearest thing),
+No commits, tests or coverage as such (the `BUILT` commit of a run and the failed step are the nearest things), no logs in the graph (the `resolve-failure` lens reads one on demand),
 no billing or minutes, no test-case granularity, no runner inventory. Say so rather than
 composing an answer from the wrong rows.

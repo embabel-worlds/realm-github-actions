@@ -50,6 +50,7 @@ CALLS = [
     ('ActionsRunCount', {'repo': REPO, 'since': SINCE}),
     ('ActionsRunTime', {'repo': REPO, 'since': SINCE}),
     ('ActionsByActor', {'repo': REPO, 'since': SINCE, 'limit': 25}),
+    ('ActionsWhatBroke', {'repo': REPO, 'branch': 'main'}),
     ('ActionsSlowestRuns', {'repo': REPO, 'since': SINCE, 'limit': 1}),
     ('ActionsWorkflowSummary', {'repo': REPO, 'since': SINCE}),
     ('ActionsDailyRuns', {'repo': REPO, 'since': SINCE}),
@@ -87,6 +88,15 @@ for repo in REPOS:
     if key('ActionsRunCount', args) not in envelopes:
         envelopes[key('ActionsRunCount', args)] = json.loads(req('/api/v1/views/ActionsRunCount/invoke', {'args': args}))
         print('captured warm-up for', repo)
+# The lens, for the newest failed run in the failed-runs fixture (one log download, one search, one model call).
+fr = envelopes[key('ActionsFailedRuns', {'repo': REPO, 'since': SINCE, 'limit': 50})]
+frows = fr.get('data') if isinstance(fr.get('data'), list) else []
+if frows:
+    jargs = {'repo': REPO, 'runId': frows[0]['runId']}
+    envelopes[key('ActionsRunJobs', jargs)] = json.loads(req('/api/v1/views/ActionsRunJobs/invoke', {'args': jargs}))
+    largs = {'repo': REPO, 'runId': frows[0]['runId']}
+    envelopes['lens:resolve-failure:' + json.dumps(dict(sorted(largs.items())), separators=(',', ':'))] = json.loads(req('/api/v1/lenses/resolve-failure/invoke', {'args': largs}))
+    print('captured lens resolve-failure for run', frows[0]['runId'])
 json.dump({'capturedAt': NOW_MS, 'repo': REPO, 'since': SINCE, 'envelopes': envelopes}, open(os.path.join(FX, 'envelopes.json'), 'w'), indent=1)
 
 ask = json.loads(req('/api/v1/admin/kg/ask', {'question': f'which workflow in {REPO} fails most often'}))

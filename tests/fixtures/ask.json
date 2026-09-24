@@ -7,7 +7,7 @@
  "llmCallLog": [
   "kg-ask (generation)"
  ],
- "durationMs": 66,
+ "durationMs": 50,
  "error": null,
  "cypher": "MATCH (r:GitHubRepository {full_name: 'embabel/embabel-agent'})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)\nWHERE run.status = 'completed'\nWITH run.name AS workflow, count(run) AS runs, sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failures\nWHERE runs > 0\nRETURN workflow, runs, failures, toFloat(failures) / runs AS failureRate\nORDER BY failureRate DESC, failures DESC LIMIT 1",
  "rows": [

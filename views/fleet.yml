@@ -81,3 +81,59 @@
     RETURN row.repo AS repo, row.branch AS branch, row.workflow AS workflow, row.title AS title,
            row.prNumbers AS prNumbers, row.actor AS actor, row.failedAt AS failedAt,
            row.runId AS runId, row.url AS url
+
+- name: ActionsWhatBroke
+  description: >-
+    WHAT BROKE a branch: for each workflow whose latest completed run on the branch failed, the
+    last green run, the FIRST failing run after it, and the commit that first failing run built —
+    author, message, and the files it changed. THE answer for "what broke main", "which commit
+    broke the build", "what changed before the failure", "who broke the build and what did they
+    change". One repository at a time; opens the commit of up to `runs` recent failing runs.
+    GitHub's own dynamic workflows (Dependabot, Copilot, dependency submission) are left out:
+    the commit they "built" is just HEAD at the time, so it explains nothing.
+  params:
+    repo:   { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    branch: { type: string, default: "main", description: "The branch to explain." }
+    days:   { type: int, default: 14, description: "How far back to look, at most 31." }
+    runs:   { type: int, default: 40, description: "How many of the newest failing runs on the branch to open the commit of (one call each, cached a week)." }
+    files:  { type: int, default: 12, description: "How many changed files to list per commit." }
+  # The ONE hop (BUILT) starts from the newest failing runs on the branch, bounded by a LIMIT
+  # directly before it. A second traversal of the same (shared) history read then finds, per
+  # workflow, the latest run and the last green one, and the first red after that green is
+  # picked out of the commits already fetched. Only one traversal may hop: the engine bounds the
+  # hop's anchors only when the LIMIT sits directly before it on the hop's own traversal.
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(f:WorkflowRun)
+    WITH f, f.created_at AS fAt, f.conclusion AS fc, f.head_branch AS fb, f.status AS fs,
+         CASE WHEN f.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(f.path, '/')[1] ELSE f.name END AS fw
+    WHERE fb = $branch AND fs = 'completed' AND fc = 'failure'
+      AND datetime(fAt) >= datetime() - duration({days: $days})
+      AND NOT fw STARTS WITH 'dynamic: '
+    WITH f, fAt, fw
+    ORDER BY fAt DESC LIMIT $runs
+    MATCH (f)-[:BUILT]->(c:GitHubCommit)
+    WITH collect({workflow: fw, runId: toInteger(f.id), url: f.html_url, at: fAt,
+                  sha: c.sha, author: c.authorLogin, authorName: c.authorName, message: c.message,
+                  additions: toInteger(c.additions), deletions: toInteger(c.deletions),
+                  files: coalesce(c.files, []), commitUrl: c.url}) AS reds
+    MATCH (r2:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH reds, run, run.created_at AS at, run.status AS status, run.conclusion AS conclusion, run.head_branch AS branch
+    WHERE datetime(at) >= datetime() - duration({days: $days}) AND branch = $branch AND status = 'completed'
+    WITH reds, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, at, conclusion
+    ORDER BY at ASC
+    WITH reds, workflow, collect({at: at, c: conclusion}) AS runs
+    WITH reds, workflow, runs[-1] AS latest, [x IN runs WHERE x.c = 'success'] AS greens
+    WHERE latest.c <> 'success'
+    WITH workflow, latest, CASE WHEN size(greens) = 0 THEN '' ELSE greens[-1].at END AS lastGreenAt, reds
+    WITH workflow, latest, lastGreenAt,
+         reduce(m = null, x IN [y IN reds WHERE y.workflow = workflow AND y.at > lastGreenAt] |
+                CASE WHEN m IS NULL OR x.at < m.at THEN x ELSE m END) AS first
+    WHERE first IS NOT NULL
+    RETURN workflow,
+           CASE WHEN lastGreenAt = '' THEN null ELSE lastGreenAt END AS lastGreenAt,
+           first.at AS firstRedAt, first.runId AS firstRedRunId, first.url AS firstRedUrl,
+           latest.c AS latestConclusion, latest.at AS latestAt,
+           first.sha AS sha, first.author AS author, first.authorName AS authorName,
+           split(first.message, '\n')[0] AS title, first.additions AS additions, first.deletions AS deletions,
+           first.files[0..$files] AS files, size(first.files) AS filesChanged, first.commitUrl AS commitUrl
+    ORDER BY firstRedAt DESC

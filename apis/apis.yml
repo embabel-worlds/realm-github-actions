@@ -1,6 +1,6 @@
 # GitHub REST API — Actions and Checks. VENDORED, TRIMMED spec: the official
 # github/rest-api-description document is 13MB and ~1000 operations; the sibling file
-# holds the five operations this realm's producers use plus their $ref closure (60KB).
+# holds the seven operations this realm uses plus their $ref closure (77KB).
 # To add an operation, regenerate from the official spec with
 #   python3 scripts/trim-openapi.py <full-spec.json> apis/api.github.com.json <op-id>,<op-id>   (comma-separated)
 #
@@ -26,3 +26,5 @@
     - actions/list-repo-workflows           # GET /repos/{owner}/{repo}/actions/workflows
     - checks/list-annotations               # GET /repos/{owner}/{repo}/check-runs/{check_run_id}/annotations
     - actions/get-workflow-run-usage        # GET /repos/{owner}/{repo}/actions/runs/{run_id}/timing
+    - repos/get-commit                      # GET /repos/{owner}/{repo}/commits/{ref} — the commit a run built, with its files
+    - actions/download-job-logs-for-workflow-run   # GET .../actions/jobs/{job_id}/logs — the raw log, for the resolution lens

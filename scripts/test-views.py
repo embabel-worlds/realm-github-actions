@@ -41,6 +41,7 @@ VIEWS = {
     'ActionsRunCount':        {'repo': REPO, 'since': SINCE},
     'ActionsRunTime':         {'repo': REPO, 'since': SINCE},
     'ActionsByActor':         {'repo': REPO, 'since': SINCE},
+    'ActionsWhatBroke':       {'repo': REPO, 'branch': 'main'},
     'ActionsRecentRuns':      {'repo': REPO, 'since': SINCE, 'limit': 50},
     'ActionsWorkflowSummary': {'repo': REPO, 'since': SINCE},
     'ActionsSlowestRuns':     {'repo': REPO, 'since': SINCE, 'limit': 5},
@@ -56,6 +57,7 @@ VIEWS = {
     # ActionsRunJobs is run with the slowest run found by ActionsSlowestRuns (below).
 }
 MAY_BE_EMPTY = {
+    'ActionsWhatBroke':       'main is green on every workflow, or nothing failed on main in the window',
     'ActionsWatchlist':       'nothing followed yet — follow a repository from the app or with gateway.repository.createEntry on ActionsWatch',
     'ActionsBrokenMains':     'nothing followed, or no completed run on a watched branch in the window',
     'ActionsBrokenPullRequests': 'no pull-request branch is red across the followed repositories',

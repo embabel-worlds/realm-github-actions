@@ -198,6 +198,36 @@
     step_names: "The job's step names, in order. Parallel to step_conclusions."
     step_conclusions: "Each step's conclusion (success, failure, skipped, cancelled), parallel to step_names. The failed steps are the names at the positions whose conclusion is 'failure' — see the ActionsRunJobs view for the expression."
 
+- name: GitHubCommit
+  visibility: internal
+  userAnchor: false
+  description: "The commit a run BUILT — its message, author, and the files it changed. Reached from WorkflowRun via BUILT (one call per run, so narrow the runs first). For 'what broke main' take the first failing run after the last green one and read its commit; for a push of several commits this is the head commit, and parents names the one before it."
+  virtualJoins:
+    - anchorLabel: WorkflowRun
+      relationship: BUILT
+      producerKeyFields: [owner, repo, head_sha]
+      recordKeyField: commitKey
+      producer: commitBySha
+      maxAnchors: 40
+      maxFanoutTotal: 200
+      description: "The commit a run built, with its changed files — for 'what changed', 'what broke main', 'which files did the failing commit touch'."
+  properties:
+    sha:
+      description: "The commit sha. Identity."
+      metadata:
+        identity: "true"
+    commitKey: "The composite run key this commit was fetched under — the join link."
+    message: "The full commit message; the first line is the title."
+    authorLogin: "GitHub login of the author, when GitHub could resolve it."
+    authorName: "Author name as recorded in the commit."
+    authoredAt: "When it was authored (ISO 8601)."
+    additions: "Lines added across the commit."
+    deletions: "Lines deleted across the commit."
+    files: "Paths of the files the commit changed, in GitHub's order."
+    fileStatuses: "Parallel to files: added, modified, removed, renamed."
+    parents: "Shas of the parent commits — the commit before this one."
+    url: "Link to the commit on GitHub."
+
 - name: CheckAnnotation
   visibility: internal
   userAnchor: false

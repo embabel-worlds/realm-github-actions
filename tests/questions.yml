@@ -52,6 +52,9 @@
 - question: "who triggered the most runs in {repo} in the last 7 days"
   expect: { matchesView: { name: ActionsByActor, column: runs, args: { repo: "{repo}" } } }
 
+- question: "what broke main in {repo}"
+  expect: { minRows: 0 }   # honestly empty when main is green
+
 # The fleet — every followed repository at once.
 - question: "which repositories are we following"
   expect: { matchesView: { name: ActionsWatchlist, column: repo } }

@@ -23,6 +23,13 @@
     label: Ask it
     chatInput: "what keeps failing in embabel/embabel-agent"
 
+- category: hint
+  title: What broke main?
+  body: "**What broke main in owner/repo** names, per red workflow, the last green run, the first failing run after it, and the commit that run built — author and files — in one answer."
+  action:
+    label: Ask it
+    chatInput: "what broke main in embabel/embabel-agent"
+
 - category: did-you-know
   title: Pass a date, save nine calls
   body: "A window given as a date — **runs since 2026-09-16** — is pushed to GitHub and fetches one page. A relative window is applied in the graph over the last 1,000 runs, and says PARTIAL when the repository has more."
