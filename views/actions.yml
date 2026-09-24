@@ -2,10 +2,10 @@
 # Cypher over the join surface. Every view pins the repository from its `repo` parameter.
 #
 # TWO DOORS. Windowed analytics (count, summary, trend, slowest, failures, flakiness, themes,
-# briefing), the fleet and a run's jobs read HAS_RUN_HISTORY: this month and last as calendar
-# periods (at least 31 days), a closed month cached for 400 days, the current month refreshed
-# every 30 minutes — a cold read of a repository is one page per hundred runs in the two
-# months (about a dozen calls for a busy repository), every later read of any window is 0.
+# briefing), the fleet and a run's jobs read HAS_RUN_HISTORY: the last 31 days as calendar
+# days plus the whole previous month, closed periods cached for 400 days, only today re-read
+# every 30 minutes — a cold read of a repository is 31 small calls plus the previous month's
+# pages, once per user; every later read of any window is at most one small call.
 # "Right now" is ActionsRecentRuns alone, on HAS_WORKFLOW_RUN live with a literal `since`
 # pushed down to GitHub's `created` filter.
 #

@@ -7,7 +7,8 @@
 #   L5 app assets      — the app is served
 # Exit nonzero on any drift.
 #
-#   GH_TOKEN=... EMBABEL_AUTH=user:pass APPLIANCE=http://127.0.0.1:11043 sh tests/verify.sh [owner/repo]
+#   GH_TOKEN=... EMBABEL_AUTH=user:pass APPLIANCE=http://127.0.0.1:11043 sh tests/verify.sh [owner/repo [owner/repo ...]]
+# The first repository takes the per-repository checks; the fleet checks cover every one named.
 set -e
 cd "$(dirname "$0")/.."
-exec python3 tests/verify.py "${1:-embabel/embabel-agent}"
+exec python3 tests/verify.py "$@"

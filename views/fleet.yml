@@ -1,7 +1,6 @@
 # The fleet: views that sweep EVERY followed repository (the ActionsWatch watchlist) in one
-# query, through the watchlist's HISTORY door — so after a repository's first read (about a
-# dozen calls, once) the whole fleet answers from cache; the current month refreshes every 30
-# minutes. Predicates sit on projected variables and limits on list slices, so the fetch is
+# query, through the watchlist's HISTORY door — so after a repository's first read (once per
+# user) the whole fleet answers from cache; only today's slice refreshes, every 30 minutes. Predicates sit on projected variables and limits on list slices, so the fetch is
 # shared with every other history view.
 
 - name: ActionsWatchlist
@@ -24,11 +23,13 @@
   params:
     since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days. At most 31 days back (the history door's depth)." }
     days:  { type: int, default: 14, description: "Window in days ending now, at most 31; used when since is left at its default." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at — 'as of' this instant." }
     all:   { type: boolean, default: false, description: "true = include workflows whose latest run succeeded." }
   cypher: |
     MATCH (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
     WITH w, run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
     WHERE createdAt >= $since
+      AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
       AND branch = coalesce(w.branch, 'main')
       AND status = 'completed'
@@ -56,12 +57,14 @@
     repo:  { type: string, default: "", description: "Only this repository as owner/repo; empty = every followed repository." }
     since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days. At most 31 days back." }
     days:  { type: int, default: 7, description: "Window in days ending now, at most 31; used when since is left at its default." }
+    until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at — 'as of' this instant." }
     limit: { type: int, default: 100, description: "Maximum rows." }
   cypher: |
     MATCH (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
     WITH w, run, run.created_at AS createdAt, run.status AS status, run.conclusion AS conclusion, run.event AS event, run.head_branch AS branch, toInteger(run.run_attempt) AS attempt
     WHERE ($repo = '' OR w.full_name = $repo)
       AND createdAt >= $since
+      AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
       AND event = 'pull_request'
       AND status = 'completed'

@@ -2,7 +2,8 @@
 """The ladder. See tests/verify.sh for the layers and how to run it."""
 import base64, datetime, json, os, re, sys, urllib.parse, urllib.request
 
-REPO = sys.argv[1] if len(sys.argv) > 1 else 'embabel/embabel-agent'
+REPOS = sys.argv[1:] or ['embabel/embabel-agent', 'embabel/embabel-agent-examples']
+REPO = REPOS[0]   # the repository the per-repository checks use; the fleet checks cover every REPOS entry
 BASE = os.environ.get('APPLIANCE', 'http://127.0.0.1:11043').rstrip('/')
 GH = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
 if not GH: sys.exit('GH_TOKEN is required: L0 reads GitHub directly, and without it nothing here is ground truth')
@@ -128,13 +129,16 @@ check(len(rows) == wf0['total_count'], 'L2: ActionsWorkflows count == GitHub', f
 # ---- L2 fleet: every followed repository's watched branch, latest completed run per workflow, from GitHub directly.
 watch_rows, _ = view('ActionsWatchlist', {})
 check(any(w['repo'] == REPO for w in watch_rows), f'L2: ActionsWatchlist follows {REPO} (the fixture the fleet checks need)', f'{[w["repo"] for w in watch_rows]}')
+# The fleet is reconciled for the repositories this run was given. A busier repository somebody
+# else follows on the same appliance changes state between the two reads, and is not the harness's.
+watch_rows = [w for w in watch_rows if w['repo'] in REPOS]
 SINCE14 = (NOW - datetime.timedelta(days=14)).strftime('%Y-%m-%dT%H:%M:%SZ')
 fleet0 = {}
 for w in watch_rows:
     page = 1; branch_runs = []
     while True:
-        d = gh(f"/repos/{w['repo']}/actions/runs", {'branch': w['branch'], 'created': f'>={SINCE14}', 'per_page': 100, 'page': page})
-        batch = d.get('workflow_runs', []); branch_runs += batch
+        d = gh(f"/repos/{w['repo']}/actions/runs", {'branch': w['branch'], 'created': f'{SINCE14}..{UNTIL}', 'per_page': 100, 'page': page})
+        batch = d.get('workflow_runs', []); branch_runs += [r for r in batch if r['created_at'] < UNTIL]
         if len(batch) < 100 or page >= 10: break
         page += 1
     latest = {}
@@ -143,17 +147,17 @@ for w in watch_rows:
         k = label(r)
         if k not in latest: latest[k] = r['conclusion']
     for k, concl in latest.items(): fleet0[(w['repo'], k)] = concl
-rows, warns = view('ActionsBrokenMains', {'since': SINCE14, 'all': True})
-got = {(r['repo'], r['workflow']): r['latestConclusion'] for r in rows}
+rows, warns = view('ActionsBrokenMains', {'since': SINCE14, 'until': UNTIL, 'all': True})
+got = {(r['repo'], r['workflow']): r['latestConclusion'] for r in rows if r['repo'] in REPOS}
 check(got == fleet0, 'L2: ActionsBrokenMains (all=true) latest conclusion per repo+workflow == GitHub', f'{got} vs {fleet0}')
-rows_red, _ = view('ActionsBrokenMains', {'since': SINCE14})
-check(sorted((r['repo'], r['workflow']) for r in rows_red) == sorted(k for k, c in fleet0.items() if c != 'success'), 'L2: ActionsBrokenMains (default) lists exactly the non-success ones')
+rows_red, _ = view('ActionsBrokenMains', {'since': SINCE14, 'until': UNTIL})
+check(sorted((r['repo'], r['workflow']) for r in rows_red if r['repo'] in REPOS) == sorted(k for k, c in fleet0.items() if c != 'success'), 'L2: ActionsBrokenMains (default) lists exactly the non-success ones')
 pr0 = {}
 for w in watch_rows:
     page = 1; prs = []
     while True:
-        d = gh(f"/repos/{w['repo']}/actions/runs", {'event': 'pull_request', 'created': f'>={SINCE}', 'per_page': 100, 'page': page})
-        batch = d.get('workflow_runs', []); prs += [r for r in batch if SINCE <= r['created_at']]
+        d = gh(f"/repos/{w['repo']}/actions/runs", {'event': 'pull_request', 'created': f'{SINCE}..{UNTIL}', 'per_page': 100, 'page': page})
+        batch = d.get('workflow_runs', []); prs += [r for r in batch if SINCE <= r['created_at'] < UNTIL]
         if len(batch) < 100 or page >= 10: break
         page += 1
     latest = {}
@@ -163,9 +167,9 @@ for w in watch_rows:
         if k not in latest: latest[k] = r['conclusion']
     for (b, wf), concl in latest.items():
         if concl == 'failure': pr0[(w['repo'], b, wf)] = concl
-rows, warns = view('ActionsBrokenPullRequests', {'since': SINCE, 'limit': 1000})
-got_pr = set((r['repo'], r['branch'], r['workflow']) for r in rows)
-check(got_pr == set(pr0), 'L2: ActionsBrokenPullRequests == GitHub (latest run per PR branch since the window start failed)', f'{sorted(got_pr)} vs {sorted(pr0)}')
+rows, warns = view('ActionsBrokenPullRequests', {'since': SINCE, 'until': UNTIL, 'limit': 1000})
+got_pr = set((r['repo'], r['branch'], r['workflow']) for r in rows if r['repo'] in REPOS)
+check(got_pr == set(pr0), 'L2: ActionsBrokenPullRequests == GitHub (latest run per PR branch in the window failed)', f'{sorted(got_pr)} vs {sorted(pr0)}')
 
 # ---- L2b: the model-backed views run and stay grounded.
 rows, warns = view('ActionsBriefing', dict(W, runs=5))
@@ -248,8 +252,8 @@ for entry in battery:
 
 # ---- L5: the app is served.
 try:
-    st, body = get('/apps/github-actions/ci-health.html')
-    check(st == 200 and b'ci-health' in body, 'L5: app ci-health served at /apps/github-actions/ci-health.html')
+    st, body = get('/apps/github-actions/CI-Health.html')
+    check(st == 200 and b'ci-health' in body, 'L5: app ci-health served at /apps/github-actions/CI-Health.html')
 except Exception as e:
     check(False, 'L5: app ci-health served', str(e)[:80])
 

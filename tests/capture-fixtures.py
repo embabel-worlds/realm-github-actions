@@ -38,7 +38,7 @@ def req(path, body=None):
     with urllib.request.urlopen(r, timeout=900) as resp: return resp.read()
 def key(name, args): return 'view:' + name + ':' + json.dumps(dict(sorted(args.items())), separators=(',', ':'))
 
-open(os.path.join(FX, 'app.html'), 'wb').write(req('/apps/github-actions/ci-health.html'))
+open(os.path.join(FX, 'app.html'), 'wb').write(req('/apps/github-actions/CI-Health.html'))
 open(os.path.join(FX, 'contracts.json'), 'wb').write(req('/api/v1/apps-runtime/v1/contracts'))
 
 # The calls the app's scripts make at load, with the arguments they send for this instant.

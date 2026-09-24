@@ -1,4 +1,4 @@
-/* The browser harness for apps/ci-health.html — Playwright against the installed Chrome.
+/* The browser harness for apps/CI-Health.html — Playwright against the installed Chrome.
  * The app's real bytes run; the two runtime scripts are replaced by a stub that answers from
  * envelopes CAPTURED live by tests/capture-fixtures.py, keyed as the runtime keys them.
  * Date.now() is frozen to the capture instant so the app's own `since` arithmetic reproduces

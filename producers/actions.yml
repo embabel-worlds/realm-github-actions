@@ -144,15 +144,17 @@
   # Annotations of a finished check run never change.
   cache: { kind: ttl, seconds: 86400, negativeTtlSeconds: 3600 }
 
-# THE HISTORY DOOR. Completed runs never change, so history is read as CALENDAR PERIODS: the
-# current month and the previous one (GitHub's `created` takes `YYYY-MM`), which always covers
-# at least the last 31 days. A closed month is cached for 400 days; only the current month
-# refreshes, every 30 minutes. A cold read of a repository is one page per hundred runs in the
-# two months (embabel/embabel-agent: about 13 calls); every later read of any window is 0.
-# Every windowed analytic view (summary, trend, slowest, failures, flakiness, themes, briefing)
-# reads this door; the LIVE door above answers "right now" (recent runs, broken mains, PRs, a
-# run's jobs). Known edge, stated in the README: a run still in progress when its day closed,
-# or re-run days later, keeps the state it had when that day was last read.
+# THE HISTORY DOOR, in two producers over one relationship. Completed runs never change, so
+# history is read as calendar periods and a closed period is cached (400 days, in the world's
+# store). Split by how often the period changes:
+#   runHistoryByRepo   — the PREVIOUS calendar month (`created=YYYY-MM`, lag 1): always closed,
+#                        fetched once per repository per user, ever.
+#   runRecentByRepo    — the last 31 DAYS (`created=YYYY-MM-DD`): a closed day is cached the
+#                        same way; only TODAY refreshes, one page, every 30 minutes.
+# Together they always cover at least the last 31 days plus the whole previous month, with no
+# gap; a run in both (the overlap) is one node, deduplicated by id. A month-only design was
+# tried first: it re-read the whole current month — 15 pages for a busy repository — every
+# time the open period expired. Now the steady state is one small call per repository.
 - name: runHistoryByRepo
   kind: remote
   operation: actions/list-workflow-runs-for-repo
@@ -164,7 +166,43 @@
   args:
     per_page: 100
   paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 15 }   # a month of up to 1,500 runs; more is reported PARTIAL by month
-  periods: { param: created, unit: month, count: 2, lag: 0, stampAs: month }
+  periods: { param: created, unit: month, count: 1, lag: 1, stampAs: month }
+  project:
+    id: id
+    name: name
+    workflow_id: workflow_id
+    path: path
+    display_title: display_title
+    head_branch: head_branch
+    head_sha: head_sha
+    event: event
+    status: status
+    conclusion: conclusion
+    run_number: run_number
+    run_attempt: run_attempt
+    created_at: created_at
+    run_started_at: run_started_at
+    updated_at: updated_at
+    html_url: html_url
+    actor: actor.login
+    pr_numbers: "pull_requests[*].number"
+    owner: repository.owner.login
+    repo: repository.name
+  cost: { bucket: github-core, rate: 5000/hour }
+  cache: { kind: ttl, seconds: 1800, negativeTtlSeconds: 1800 }
+
+- name: runRecentByRepo
+  kind: remote
+  operation: actions/list-workflow-runs-for-repo
+  records: "$.workflow_runs[*]"
+  keyArgs: [owner, repo]
+  keySplit: "/"
+  echoKeyAs: repository
+  batchSafe: false
+  args:
+    per_page: 100
+  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 5 }    # a day of up to 500 runs; more is reported PARTIAL by day
+  periods: { param: created, unit: day, count: 31, lag: 0, stampAs: day }
   project:
     id: id
     name: name

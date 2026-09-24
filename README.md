@@ -14,7 +14,7 @@ retry, which mains are red across every repository you follow, and the paragraph
 (GitHubRepository {full_name})          pinned by 'owner/repo'; the same label realm-github anchors issues on
    -[:HAS_WORKFLOW]->     (Workflow)
    -[:HAS_WORKFLOW_RUN]-> (WorkflowRun) LIVE — newest first, a literal `since` pushed to GitHub's created filter
-   -[:HAS_RUN_HISTORY]->  (WorkflowRun) HISTORY — this month and last as calendar periods, closed month cached 400 days
+   -[:HAS_RUN_HISTORY]->  (WorkflowRun) HISTORY — 31 calendar days + the previous month, closed periods cached 400 days
          -[:HAS_JOB]->            (WorkflowJob)        one call per run, all attempts
                -[:HAS_ANNOTATION]->  (CheckAnnotation)  one call per job
 ```
@@ -42,7 +42,7 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 - `wasm/handlers.ts` — `ciWatch`, a weekday-morning schedule over the watchlist: what is red
   now, what failed in the last day, the longest run. Installed makes it available; an operator
   adopts it before it fires.
-- `apps/ci-health.html` — **CI Health**: a picker over the repositories you follow (filter,
+- `apps/CI-Health.html` — **CI Health**: a picker over the repositories you follow (filter,
   swap, follow and unfollow), an ask bar in words that routes a question a view claims to that
   view, says plainly when the question is about something the realm does not hold (commits,
   tests, coverage, billing, logs, issues) with the nearest thing it does, and marks anything
@@ -72,12 +72,14 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 ## Caching — because completed runs never change
 
 Two doors to the same runs. Every windowed view, the fleet, and a run's jobs read
-`HAS_RUN_HISTORY`: this month and last as calendar periods (always at least the last 31 days),
-one GitHub page per hundred runs, a **closed month cached for 400 days** and the current month
-for 30 minutes. The first read of a repository is about a dozen calls (five to ten seconds,
-with progress shown); every later read of any window is zero calls until the current month's
-slice expires. Measured on this appliance after the first read: every history view, the fleet
-and a run's jobs 0 GitHub calls and 150 to 600 ms, a 30-day count included.
+`HAS_RUN_HISTORY`, which two producers feed: the last 31 days as calendar **days**, and the
+whole **previous month** as one period. A closed day or month is cached for 400 days in the
+world's store; only today's slice is re-read, every 30 minutes, one small page. The first read
+of a repository costs the 31 day slices plus the previous month's pages — twenty to fifty
+seconds depending on how busy the repository is, with progress shown — and every later read
+of any window is at most one call. Measured after the first read: every history view, the
+fleet and a run's jobs 0.2 to 0.6 s. A month-only design was tried between: it re-read the
+whole current month, fifteen pages for a busy repository, every time the open period expired.
 
 Getting there taught four engine rules, all in the views' comments: a literal compared against
 a fetched node's property is part of the fetch's cache key even after a `WITH`; so is the
@@ -91,7 +93,7 @@ filter.
 The cache is kept **per signed-in user**, and two panels missing it at the same moment each
 sweep GitHub (the engine does not yet share an in-flight fetch; embabel/me#1543). So the app
 warms each followed repository with one small view, one at a time, before any panel fans out:
-the first read of a repository in a session is five to ten seconds and says so on the page;
+the first read of a repository in a session is twenty to fifty seconds and says so on the page;
 after that every panel is sub-second.
 
 The jobs of a run are cached six hours and a job's annotations a day; both are immutable once
@@ -102,8 +104,12 @@ was last read.
 ## Verify before anyone asks it anything
 
 ```
-GH_TOKEN=... EMBABEL_AUTH=user:pass APPLIANCE=http://127.0.0.1:11043 sh tests/verify.sh owner/repo
+GH_TOKEN=... EMBABEL_AUTH=user:pass APPLIANCE=http://127.0.0.1:11043 sh tests/verify.sh owner/repo [owner/repo ...]
 ```
+
+The first repository takes the per-repository checks; the fleet checks cover every one named,
+and only those — a busier repository someone else follows on the same appliance changes
+state between the harness's two reads and is not its business.
 
 The ladder in `tests/verify.py`, on a window fixed before anything is read and ending two hours
 ago so an in-flight run cannot move a figure:
