@@ -10,10 +10,43 @@
 <script src="/api/v1/apps-runtime/v1/embabel.js"></script>
 <script src="/api/v1/apps-runtime/gateway.js"></script>
 <script type="application/embabel-app+json">
-{"version":1,"name":"ci-health","title":"CI Health",
- "description":"GitHub Actions CI for one repository over realm-github-actions: ask in words, run any of the realm's views with a generated form, and read the dashboard — health per workflow, trend, slowest and failed runs with their jobs, failing steps, flaky jobs, failure themes and a standup briefing. Every figure links back to GitHub.",
- "requires":{"lenses":["resolve-failure"],"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime","ActionsByActor","ActionsWhatBroke"],"realms":["github-actions"],"namespaces":["repository"]},
- "dependsOn":{"views":["ActionsRunCount","ActionsWorkflowSummary","ActionsDailyRuns","ActionsSlowestRuns","ActionsFailedRuns","ActionsRunJobs","ActionsSlowestJobs","ActionsFailingSteps","ActionsPassedOnRetry","ActionsFlakyJobs","ActionsFailureThemes","ActionsBriefing","ActionsRecentRuns","ActionsWorkflows","ActionsWatchlist","ActionsBrokenMains","ActionsBrokenPullRequests","ActionsRunTime","ActionsByActor","ActionsWhatBroke"],"realms":["github-actions"],"gateway":["kg","repository"]}}
+{
+  "version": 1,
+  "name": "ci-health",
+  "requires": {
+    "lenses": [
+      "resolve-failure"
+    ],
+    "views": [
+      "ActionsRunCount",
+      "ActionsWorkflowSummary",
+      "ActionsDailyRuns",
+      "ActionsSlowestRuns",
+      "ActionsFailedRuns",
+      "ActionsRunJobs",
+      "ActionsSlowestJobs",
+      "ActionsFailingSteps",
+      "ActionsPassedOnRetry",
+      "ActionsFlakyJobs",
+      "ActionsFailureThemes",
+      "ActionsBriefing",
+      "ActionsRecentRuns",
+      "ActionsWorkflows",
+      "ActionsWatchlist",
+      "ActionsBrokenMains",
+      "ActionsBrokenPullRequests",
+      "ActionsRunTime",
+      "ActionsByActor",
+      "ActionsWhatBroke"
+    ],
+    "realms": [
+      "github-actions"
+    ],
+    "namespaces": [
+      "repository"
+    ]
+  }
+}
 </script>
 <style>
   :root{--bg:#0a0a0f;--surface:#13131a;--surface2:#171722;--border:#1e1e2e;--cyan:#63c0f5;--green:#3fd73c;--dim:#6b7280;
