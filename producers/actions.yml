@@ -15,7 +15,7 @@
 # renders into `created` as '>=DATE'. Views that take a relative window (`days`) filter in
 # the graph, because a producer argument is static and cannot say 'seven days before now'.
 #
-# Values arrive as strings. Views coerce.
+# Numeric fields are typed on the types (types/actions.yml), so they arrive as numbers.
 
 - name: runsByRepo
   kind: remote
@@ -164,6 +164,12 @@
     path: path
     start_line: start_line
     raw_details: raw_details
+  # GitHub sends '' rather than null for a title or detail the action did not supply. That empty
+  # string is the API's "none", not text, so it lands as null: count(a.title) counts the titled
+  # annotations, and `a.title IS NULL` finds the untitled ones.
+  compute:
+    title: "CASE r.title WHEN '' THEN null ELSE r.title END"
+    raw_details: "CASE r.raw_details WHEN '' THEN null ELSE r.raw_details END"
   cost: { bucket: github-core, rate: 5000/hour }
   # Annotations of a finished check run never change.
   cache: { kind: ttl, seconds: 86400, negativeTtlSeconds: 3600 }
