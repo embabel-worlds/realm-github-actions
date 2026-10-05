@@ -30,7 +30,8 @@
 #            at its epoch default. At most 62 on the history door.
 # GitHub's timestamps share one format, so string comparison on them is exact.
 #
-# FIGURES. Producer values are strings: toInteger()/datetime() everywhere. Run time is
+# FIGURES. Ids and timestamps are strings: toInteger()/datetime() on those. Counts are typed
+# ints, and toInteger() on them is a harmless no-op. Run time is
 # updated_at − run_started_at on a COMPLETED run; queue time is run_started_at − created_at.
 # Every entity column travels with its id and URL, so a figure can be checked on GitHub.
 # A workflow is labelled by run.name, except GitHub's own dynamic workflows (Dependabot,

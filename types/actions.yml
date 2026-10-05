@@ -7,7 +7,10 @@
 #                  -[:HAS_ANNOTATION]->    (CheckAnnotation)
 #
 # Nothing is mirrored. Every hop is a virtual join fetched at query time and rolled back.
-# Producer values arrive as STRINGS: views use toInteger()/toFloat()/datetime() on them.
+# Every count, number and line declares `type: int`, so `run.run_attempt > 1` and ORDER BY compare
+# numbers; an undeclared property arrives as text, where "10" sorts before "9" and `> 1` matches
+# nothing. The ids stay strings: they are identities, compared by equality, and every join and URL
+# already holds them that way. Timestamps are ISO strings for datetime().
 #
 # Every join is declared under the type it PRODUCES, with anchorLabel naming where it starts.
 
@@ -122,7 +125,8 @@
         identity: "true"
     name: "The workflow's name, e.g. 'Build'."
     workflow_id:
-      description: "Numeric id of the Workflow this is a run of."
+      type: int
+      description: "Numeric id of the Workflow this is a run of. An integer, while Workflow.id is a string: match them with toInteger(wf.id) = run.workflow_id."
     path: "The workflow file that ran."
     display_title: "What GitHub shows as the run's title — the commit or PR title."
     head_branch: "Branch the run was for, e.g. main."
@@ -131,8 +135,10 @@
     status: "queued, in_progress, completed, ..."
     conclusion: "success, failure, cancelled, skipped, timed_out, action_required, or null until completed."
     run_number:
+      type: int
       description: "The run's sequence number within its workflow."
     run_attempt:
+      type: int
       description: "1 for a first run; higher means it was re-run. A success with run_attempt > 1 passed on retry."
     created_at: "When the run was requested (ISO 8601)."
     run_started_at: "When the latest attempt started executing (ISO 8601). Minus created_at is time spent queued."
@@ -164,9 +170,11 @@
       metadata:
         identity: "true"
     run_id:
-      description: "The run this job belongs to."
+      type: int
+      description: "The run this job belongs to. An integer, while WorkflowRun.id is a string: match them with toInteger(run.id) = j.run_id."
     runKey: "The composite repository+run key this job was fetched under — the join link back to its run."
     run_attempt:
+      type: int
       description: "Which attempt of the run this job ran in."
     name: "Job name as the workflow defines it, matrix suffix included."
     status: "queued, in_progress, completed."
@@ -205,8 +213,8 @@
     authorLogin: "GitHub login of the author, when GitHub could resolve it."
     authorName: "Author name as recorded in the commit."
     authoredAt: "When it was authored (ISO 8601)."
-    additions: "Lines added across the commit."
-    deletions: "Lines deleted across the commit."
+    additions: { type: int, description: "Lines added across the commit." }
+    deletions: { type: int, description: "Lines deleted across the commit." }
     files: "Paths of the files the commit changed, in GitHub's order."
     fileStatuses: "Parallel to files: added, modified, removed, renamed."
     parents: "Shas of the parent commits — the commit before this one."
@@ -228,9 +236,10 @@
   properties:
     jobKey: "The composite run+job key this annotation was fetched under — the join link back to its job."
     annotation_level: "failure, warning, or notice."
-    title: "Annotation title, often empty."
+    title: "Annotation title, or null when the action gave none."
     message: "The annotation text, e.g. 'Process completed with exit code 1.' or a test assertion."
     path: "File the annotation points at; '.github' for the workflow itself."
     start_line:
+      type: int
       description: "Line in that file."
-    raw_details: "Extra detail when the action supplied it."
+    raw_details: "Extra detail when the action supplied it; null otherwise."
