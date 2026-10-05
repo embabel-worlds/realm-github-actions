@@ -11,8 +11,8 @@
     underneath it.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     runs:  { type: int, default: 20, description: "How many of the newest failed runs to read (one API call each, plus one per failed job)." }
     count: { type: int, default: 5, description: "How many themes at most." }
@@ -48,8 +48,8 @@
     cites comes from ActionsWorkflowSummary and ActionsFailingSteps.
   params:
     repo: { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     runs: { type: int, default: 15, description: "How many of the newest failed runs to open for the failing steps." }
   # TWO traversals of the run door, and a subtlety: every predicate on either traversal is

@@ -14,7 +14,7 @@ retry, which mains are red across every repository you follow, and the paragraph
 (GitHubRepository {full_name})          pinned by 'owner/repo'; the same label realm-github anchors issues on
    -[:HAS_WORKFLOW]->     (Workflow)
    -[:HAS_WORKFLOW_RUN]-> (WorkflowRun) LIVE — newest first, a literal `since` pushed to GitHub's created filter
-   -[:HAS_RUN_HISTORY]->  (WorkflowRun) HISTORY — 31 calendar days + the previous month, closed periods cached 400 days
+   -[:HAS_RUN_HISTORY]->  (WorkflowRun) HISTORY — 62 calendar days (this month and last, whole), closed days cached 400 days
          -[:BUILT]->              (GitHubCommit)       one call per run opened, cached a week: message, author, files
          -[:HAS_JOB]->            (WorkflowJob)        one call per run, all attempts
                -[:HAS_ANNOTATION]->  (CheckAnnotation)  one call per job
@@ -34,8 +34,8 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 - `types/` — the graph above, every hop a declared virtual join. `ActionsWatch` is the only
   stored type. Ids arrive from GitHub as strings; the types say so.
 - `producers/` — four remote producers. `runsByRepo` is the live door with pushdown on
-  `created_at`, `head_branch`, `event`, `actor` and `conclusion`; `runHistoryByRepo` is the
-  same endpoint read as calendar periods (see *Caching*).
+  `created_at`, `head_branch`, `event`, `actor` and `conclusion`; `runRecentByRepo` is the
+  same endpoint read as calendar days (see *Caching*).
 - `views/` — the answer surface, one per question: `actions.yml` (counts, run time, by actor,
   summary, slowest, failed, trend, retries, workflows), `jobs.yml` (a run's jobs, slowest jobs, failing steps,
   flaky jobs), `intelligence.yml` (failure themes with `themes()`, the standup briefing with
@@ -79,11 +79,12 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 ## Caching — because completed runs never change
 
 Two doors to the same runs. Every windowed view, the fleet, and a run's jobs read
-`HAS_RUN_HISTORY`, which two producers feed: the last 31 days as calendar **days**, and the
-whole **previous month** as one period. A closed day or month is cached for 400 days in the
-world's store; only today's slice is re-read, every 30 minutes, one small page. The first read
-of a repository costs the 31 day slices plus the previous month's pages — twenty to fifty
-seconds depending on how busy the repository is, with progress shown — and every later read
+`HAS_RUN_HISTORY`, one producer reading the last 62 days as calendar **days** — always the
+whole current and previous calendar month. One producer, because a relationship is answered by
+exactly one join: a second producer on the same relationship is never consulted. A closed day
+is cached for 400 days in the world's store; only today's slice is re-read, every 30 minutes,
+one small page. The first read of a repository costs the 62 day slices — up to a minute or two
+depending on how busy the repository is, with progress shown — and every later read
 of any window is at most one call. Measured after the first read: every history view, the
 fleet and a run's jobs 0.2 to 0.6 s. A month-only design was tried between: it re-read the
 whole current month, fifteen pages for a busy repository, every time the open period expired.
@@ -105,8 +106,8 @@ after that every panel is sub-second.
 
 The jobs of a run are cached six hours and a job's annotations a day; both are immutable once
 the run is complete. The honest edge of the history door: a run still in progress when its
-month closed, or re-run in a later month, keeps in history the state it had when that month
-was last read.
+day closed, or re-run on a later day, keeps in history the state it had when that day was last
+read.
 
 ## Verify before anyone asks it anything
 
@@ -158,7 +159,7 @@ Green means: every figure on every surface equals what GitHub says for the same 
   else to the model marked **unverified**, Cypher shown. The generator now has steers in the
   cache-sharing shape and a watchlist-door example for unscoped questions; the ladder still
   reports the phrasings it composes with a different measure.
-- A run's jobs are looked up through the history door, so a run older than 31 days has none
+- A run's jobs are looked up through the history door, so a run older than 62 days has none
   here; GitHub's page shows them.
 - `pr_numbers` is usually empty: GitHub links pull requests to a run only in some cases.
   Broken PRs are identified by branch and title.

@@ -21,8 +21,8 @@
     repos are red", "is main green everywhere", "fleet CI status". One row per repository
     and workflow whose latest run is not a success; `all` = every workflow, green ones too.
   params:
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days. At most 31 days back (the history door's depth)." }
-    days:  { type: int, default: 14, description: "Window in days ending now, at most 31; used when since is left at its default." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days. At most 62 days back (the history door's depth)." }
+    days:  { type: int, default: 14, description: "Window in days ending now, at most 62; used when since is left at its default." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at — 'as of' this instant." }
     all:   { type: boolean, default: false, description: "true = include workflows whose latest run succeeded." }
   cypher: |
@@ -55,8 +55,8 @@
     for "which PRs are broken", "which pull requests are failing CI", "red PRs".
   params:
     repo:  { type: string, default: "", description: "Only this repository as owner/repo; empty = every followed repository." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days. At most 31 days back." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31; used when since is left at its default." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days. At most 62 days back." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62; used when since is left at its default." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at — 'as of' this instant." }
     limit: { type: int, default: 100, description: "Maximum rows." }
   cypher: |
@@ -94,7 +94,7 @@
   params:
     repo:   { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
     branch: { type: string, default: "main", description: "The branch to explain." }
-    days:   { type: int, default: 14, description: "How far back to look, at most 31." }
+    days:   { type: int, default: 14, description: "How far back to look, at most 62." }
     runs:   { type: int, default: 40, description: "How many of the newest failing runs on the branch to open the commit of (one call each, cached a week)." }
     files:  { type: int, default: 12, description: "How many changed files to list per commit." }
   # The ONE hop (BUILT) starts from the newest failing runs on the branch, bounded by a LIMIT
