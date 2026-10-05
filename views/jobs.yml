@@ -11,7 +11,7 @@
     "what step broke". Give the run id from ActionsSlowestRuns or ActionsFailedRuns.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    runId: { type: int, default: 0, description: "The numeric run id (from a run's URL or another view). The run must be within the last 31 days (the history door's depth)." }
+    runId: { type: int, default: 0, description: "The numeric run id (from a run's URL or another view). The run must be within the last 62 days (the history door's depth)." }
   # Rank the wanted run first and take ONE: a LIMIT directly before the hop shares the cached
   # history AND bounds the hop to one anchor, where a predicate on run.id (even wrapped) would
   # give this lookup its own cache key and re-read the repository for every run id. The guard
@@ -38,8 +38,8 @@
     time go", "which job is the bottleneck". Reads the jobs of the `runs` slowest runs only.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     runs:  { type: int, default: 10, description: "How many of the slowest runs to open (one API call each)." }
     limit: { type: int, default: 15, description: "How many jobs to return." }
@@ -70,8 +70,8 @@
     Deterministic — counts, not a model's opinion. Opens the jobs of the `runs` newest failed runs.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     runs:  { type: int, default: 25, description: "How many of the newest failed runs to open (one API call each)." }
     limit: { type: int, default: 20, description: "How many (job, step) rows." }
@@ -100,8 +100,8 @@
     granularity), "which job do we keep re-running". Opens the jobs of runs that passed on retry.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 30, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 30, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     runs:  { type: int, default: 25, description: "How many of the newest passed-on-retry runs to open (one API call each)." }
   cypher: |

@@ -2,10 +2,10 @@
 # Cypher over the join surface. Every view pins the repository from its `repo` parameter.
 #
 # TWO DOORS. Windowed analytics (count, summary, trend, slowest, failures, flakiness, themes,
-# briefing), the fleet and a run's jobs read HAS_RUN_HISTORY: the last 31 days as calendar
-# days plus the whole previous month, closed periods cached for 400 days, only today re-read
-# every 30 minutes — a cold read of a repository is 31 small calls plus the previous month's
-# pages, once per user; every later read of any window is at most one small call.
+# briefing), the fleet and a run's jobs read HAS_RUN_HISTORY: the last 62 days as calendar
+# days (this month and last, whole), closed days cached for 400 days, only today re-read
+# every 30 minutes — a cold read of a repository is 62 small calls, once per user; every
+# later read of any window is at most one small call.
 # "Right now" is ActionsRecentRuns alone, on HAS_WORKFLOW_RUN live with a literal `since`
 # pushed down to GitHub's `created` filter.
 #
@@ -27,7 +27,7 @@
 #   until  — ISO-8601 upper bound (exclusive), applied in the graph. With `since` it fixes a
 #            window so a figure here and one computed straight from GitHub agree to the row.
 #   days   — a relative window ending now, applied in the graph, used when `since` is left
-#            at its epoch default. At most 31 on the history door.
+#            at its epoch default. At most 62 on the history door.
 # GitHub's timestamps share one format, so string comparison on them is exact.
 #
 # FIGURES. Producer values are strings: toInteger()/datetime() everywhere. Run time is
@@ -46,8 +46,8 @@
     runs; this view is the figure.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
@@ -73,7 +73,7 @@
     average queue seconds. Run time is updated_at − run_started_at on a completed run.
   params:
     repo:  { type: string, default: "", description: "Repository as owner/repo; empty = every followed repository." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31; ignored when since is given." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62; ignored when since is given." }
     since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
   cypher: |
@@ -104,7 +104,7 @@
     the GitHub login whose push, pull request or dispatch started the run.
   params:
     repo:  { type: string, default: "", description: "Repository as owner/repo; empty = every followed repository." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31; ignored when since is given." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62; ignored when since is given." }
     since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     limit: { type: int, default: 25, description: "How many actors." }
@@ -158,8 +158,8 @@
     failure rate first, so the first row answers "fails most often".
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
@@ -190,8 +190,8 @@
     workflow, branch and link. Follow a runId into ActionsRunJobs to see which job took the time.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     limit: { type: int, default: 10, description: "How many runs." }
   cypher: |
@@ -220,8 +220,8 @@
     "which runs broke". Follow a runId into ActionsRunJobs for the failing job and step.
   params:
     repo:   { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 7, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     branch: { type: string, default: "", description: "Only this branch, e.g. main. Empty = every branch." }
     limit:  { type: int, default: 50, description: "Maximum rows." }
@@ -251,8 +251,8 @@
     trend".
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 14, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 14, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
   cypher: |
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
@@ -275,8 +275,8 @@
     often do we re-run". Follow into ActionsFlakyJobs for the job names behind it.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
-    days:  { type: int, default: 30, description: "Window in days ending now, at most 31 (the history door's depth); ignored when since is given." }
-    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 31 days, so an earlier bound is silently the 31-day floor." }
+    days:  { type: int, default: 30, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since: { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at, e.g. 2026-09-16T00:00:00Z; overrides days. The history door holds 62 days, so an earlier bound is silently the 62-day floor." }
     until: { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
     limit: { type: int, default: 50, description: "Maximum rows." }
   cypher: |
