@@ -47,6 +47,8 @@
     repository: "The 'owner/repo' this was fetched for — the join link back to the repository."
 
 - name: WorkflowRun
+  parents: [Build]                 # a Build of the dev vocabulary (realm-dev-vocabulary, installed first): run.repositoryKey, run.conclusion
+                                   # in the vocabulary's words, run.trigger, run.changeRequestKeys, run.actorKind — see producers/actions.yml
   visibility: internal
   userAnchor: false
   description: "One run of a workflow, newest first, latest attempt only. Reached from GitHubRepository via HAS_WORKFLOW_RUN — up to the 1,000 most recent runs (10 pages of 100); a window older than that is reported PARTIAL. Timestamps are ISO strings: run time is updated_at minus run_started_at for a completed run; queue time is run_started_at minus created_at. conclusion is null while status is not 'completed'. A question that names NO repository means every followed repository: start at (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run) and group by w.full_name; a bare (r:GitHubRepository) with no full_name matches nothing. Filter on PROJECTED variables (WITH run, run.created_at AS createdAt, run.status AS status WHERE …), never on run.<property> directly, and limit by collect + list slice rather than LIMIT — that is what lets the query share the cached history instead of re-reading GitHub. On HAS_WORKFLOW_RUN (live) a literal created_at lower bound is pushed to GitHub."
@@ -191,6 +193,8 @@
     step_conclusions: "Each step's conclusion (success, failure, skipped, cancelled), parallel to step_names. The failed steps are the names at the positions whose conclusion is 'failure' — see the ActionsRunJobs view for the expression."
 
 - name: GitHubCommit
+  parents: [Commit]                # a Commit of the dev vocabulary: c.key, c.projectKey (what realm-java-project pins), c.authorKind — 'assisted'
+                                   # when a Co-Authored-By trailer names a coding agent, the common case for agent-written code
   visibility: internal
   userAnchor: false
   description: "The commit a run BUILT — its message, author, and the files it changed. Reached from WorkflowRun via BUILT (one call per run, so narrow the runs first). For 'what broke main' take the first failing run after the last green one and read its commit; for a push of several commits this is the head commit, and parents names the one before it."

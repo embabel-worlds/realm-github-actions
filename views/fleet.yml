@@ -45,7 +45,7 @@
            latest.display_title AS latestTitle, latest.actor AS latestActor, latest.html_url AS latestUrl,
            CASE WHEN lastGreen IS NULL THEN null ELSE lastGreen.created_at END AS lastGreenAt,
            failuresInWindow
-    ORDER BY CASE latest.conclusion WHEN 'failure' THEN 0 WHEN 'timed_out' THEN 1 WHEN 'cancelled' THEN 2 ELSE 3 END, repo ASC, workflow ASC
+    ORDER BY CASE latest.conclusion WHEN 'failure' THEN 0 WHEN 'timed-out' THEN 1 WHEN 'cancelled' THEN 2 ELSE 3 END, repo ASC, workflow ASC
 
 - name: ActionsBrokenPullRequests
   description: >-
