@@ -52,9 +52,26 @@
     updated_at: updated_at
     html_url: html_url
     actor: actor.login
+    actorType: actor.type
     pr_numbers: "pull_requests[*].number"
     owner: repository.owner.login
     repo: repository.name
+  compute:                           # the dev vocabulary's Build contract (realm-dev-vocabulary/types/vocabulary.yml); `r` is the run as GitHub hands it over plus what project lifted
+    repositoryKey: "'github.com/' + toLower(split(r.html_url, '/')[3] + '/' + split(r.html_url, '/')[4])"
+    number: "r.run_number"
+    attempt: "r.run_attempt"
+    status: "CASE r.status WHEN 'completed' THEN 'completed' WHEN 'in_progress' THEN 'running' ELSE 'queued' END"
+    conclusion: "CASE r.conclusion WHEN 'timed_out' THEN 'timed-out' WHEN 'success' THEN 'success' WHEN 'failure' THEN 'failure' WHEN 'cancelled' THEN 'cancelled' WHEN 'skipped' THEN 'skipped' WHEN null THEN '' ELSE 'other' END"
+    trigger: "CASE r.event WHEN 'push' THEN 'push' WHEN 'pull_request' THEN 'change-request' WHEN 'pull_request_target' THEN 'change-request' WHEN 'schedule' THEN 'schedule' WHEN 'workflow_dispatch' THEN 'manual' WHEN 'release' THEN 'tag' ELSE 'other' END"
+    branch: "r.head_branch"
+    sha: "r.head_sha"
+    changeRequestKeys: "[n IN coalesce(r.pr_numbers, []) | 'github.com/' + toLower(split(r.html_url, '/')[3] + '/' + split(r.html_url, '/')[4]) + '#' + toString(n)]"
+    actorLogin: "r.actor"
+    actorKind: "CASE WHEN r.actorType = 'Bot' AND any(a IN ['copilot', 'claude', 'devin', 'codex', 'cursor', 'aider', 'jules', 'sweep', 'gemini', 'chatgpt', 'openai'] WHERE toLower(coalesce(r.actor, '')) CONTAINS a) THEN 'agent' WHEN r.actorType = 'Bot' OR coalesce(r.actor, '') ENDS WITH '[bot]' THEN 'bot' WHEN r.actorType = 'User' THEN 'human' ELSE 'unknown' END"
+    queuedAt: "r.created_at"
+    startedAt: "r.run_started_at"
+    finishedAt: "CASE r.status WHEN 'completed' THEN r.updated_at ELSE '' END"
+    sourceUrl: "r.html_url"
   cost: { bucket: github-core, rate: 5000/hour }
   cache: { kind: ttl, seconds: 600, negativeTtlSeconds: 600 }
 
@@ -133,6 +150,9 @@
     sha: sha
     message: commit.message
     authorLogin: author.login
+    authorType: author.type
+    committedAt: commit.committer.date
+    verified: commit.verification.verified
     authorName: commit.author.name
     authoredAt: commit.author.date
     additions: stats.additions
@@ -141,6 +161,19 @@
     fileStatuses: "files[*].status"
     parents: "parents[*].sha"
     url: html_url
+  compute:                           # the dev vocabulary's Commit contract; `r` is GitHub's commit plus what project lifted
+    repositoryKey: "'github.com/' + toLower(split(r.html_url, '/')[3] + '/' + split(r.html_url, '/')[4])"
+    key: "'github.com/' + toLower(split(r.html_url, '/')[3] + '/' + split(r.html_url, '/')[4]) + '@' + r.sha"
+    projectKey: "'https://github.com/' + split(r.html_url, '/')[3] + '/' + split(r.html_url, '/')[4] + '@' + r.sha"
+    title: "split(coalesce(r.message, ''), '\\n')[0]"
+    coAuthors: "[l IN split(coalesce(r.message, ''), '\\n') WHERE toLower(l) STARTS WITH 'co-authored-by:' | trim(substring(l, 15))]"
+    authorKind: "CASE WHEN r.authorType = 'Bot' AND any(a IN ['copilot', 'claude', 'devin', 'codex', 'cursor', 'aider', 'jules', 'sweep', 'gemini', 'chatgpt', 'openai'] WHERE toLower(coalesce(r.authorLogin, '')) CONTAINS a) THEN 'agent' WHEN r.authorType = 'Bot' OR coalesce(r.authorLogin, '') ENDS WITH '[bot]' THEN 'bot' WHEN any(l IN split(coalesce(r.message, ''), '\\n') WHERE toLower(l) STARTS WITH 'co-authored-by:' AND any(a IN ['copilot', 'claude', 'devin', 'codex', 'cursor', 'aider', 'jules', 'sweep', 'gemini', 'chatgpt', 'openai'] WHERE toLower(l) CONTAINS a)) THEN 'assisted' WHEN r.authorType = 'User' THEN 'human' ELSE 'unknown' END"
+    committedAt: "r.committedAt"
+    isMerge: "size(coalesce(r.parents, [])) > 1"
+    isRevert: "coalesce(r.message, '') STARTS WITH 'Revert '"
+    revertsSha: "coalesce(head([l IN split(coalesce(r.message, ''), '\\n') WHERE l STARTS WITH 'This reverts commit ' | split(substring(l, 20), '.')[0]]), '')"
+    filesChanged: "size(coalesce(r.files, []))"
+    sourceUrl: "r.html_url"
   cost: { bucket: github-core, rate: 5000/hour }
   cache: { kind: ttl, seconds: 604800, negativeTtlSeconds: 3600 }
 
@@ -212,8 +245,25 @@
     updated_at: updated_at
     html_url: html_url
     actor: actor.login
+    actorType: actor.type
     pr_numbers: "pull_requests[*].number"
     owner: repository.owner.login
     repo: repository.name
+  compute:                           # the dev vocabulary's Build contract (realm-dev-vocabulary/types/vocabulary.yml); `r` is the run as GitHub hands it over plus what project lifted
+    repositoryKey: "'github.com/' + toLower(split(r.html_url, '/')[3] + '/' + split(r.html_url, '/')[4])"
+    number: "r.run_number"
+    attempt: "r.run_attempt"
+    status: "CASE r.status WHEN 'completed' THEN 'completed' WHEN 'in_progress' THEN 'running' ELSE 'queued' END"
+    conclusion: "CASE r.conclusion WHEN 'timed_out' THEN 'timed-out' WHEN 'success' THEN 'success' WHEN 'failure' THEN 'failure' WHEN 'cancelled' THEN 'cancelled' WHEN 'skipped' THEN 'skipped' WHEN null THEN '' ELSE 'other' END"
+    trigger: "CASE r.event WHEN 'push' THEN 'push' WHEN 'pull_request' THEN 'change-request' WHEN 'pull_request_target' THEN 'change-request' WHEN 'schedule' THEN 'schedule' WHEN 'workflow_dispatch' THEN 'manual' WHEN 'release' THEN 'tag' ELSE 'other' END"
+    branch: "r.head_branch"
+    sha: "r.head_sha"
+    changeRequestKeys: "[n IN coalesce(r.pr_numbers, []) | 'github.com/' + toLower(split(r.html_url, '/')[3] + '/' + split(r.html_url, '/')[4]) + '#' + toString(n)]"
+    actorLogin: "r.actor"
+    actorKind: "CASE WHEN r.actorType = 'Bot' AND any(a IN ['copilot', 'claude', 'devin', 'codex', 'cursor', 'aider', 'jules', 'sweep', 'gemini', 'chatgpt', 'openai'] WHERE toLower(coalesce(r.actor, '')) CONTAINS a) THEN 'agent' WHEN r.actorType = 'Bot' OR coalesce(r.actor, '') ENDS WITH '[bot]' THEN 'bot' WHEN r.actorType = 'User' THEN 'human' ELSE 'unknown' END"
+    queuedAt: "r.created_at"
+    startedAt: "r.run_started_at"
+    finishedAt: "CASE r.status WHEN 'completed' THEN r.updated_at ELSE '' END"
+    sourceUrl: "r.html_url"
   cost: { bucket: github-core, rate: 5000/hour }
   cache: { kind: ttl, seconds: 1800, negativeTtlSeconds: 1800 }

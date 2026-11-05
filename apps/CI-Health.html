@@ -116,7 +116,7 @@
   .tablewrap{overflow:auto;border:1px solid var(--border);border-radius:9px;}
   a{color:var(--cyan);text-decoration:none;} a:hover{text-decoration:underline;}
   .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.72rem;border:1px solid var(--border);color:var(--dim);white-space:nowrap;}
-  .pill.success{color:var(--green);border-color:#1f4d1e;} .pill.failure{color:var(--red);border-color:#5a2a26;} .pill.cancelled,.pill.skipped,.pill.timed_out{color:var(--amber);border-color:#5a4a20;}
+  .pill.success{color:var(--green);border-color:#1f4d1e;} .pill.failure{color:var(--red);border-color:#5a2a26;} .pill.cancelled,.pill.skipped,.pill.timed-out,.pill.other{color:var(--amber);border-color:#5a4a20;}
   .note{margin:10px 0;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:8px;font-size:.84rem;}
   .note.bad{border-left-color:var(--red);}
   .empty{padding:16px;color:var(--dim);font-size:.88rem;border:1px dashed var(--border);border-radius:8px;}
@@ -313,7 +313,7 @@
     if (Array.isArray(v)) return v.map(function (x) { return /^https?:\/\//.test(String(x)) ? link(x, String(x).replace(/^https:\/\/github\.com\//, '')) : esc(x); }).join('<br>');
     if (typeof v === 'object') return '<code>' + esc(JSON.stringify(v)) + '</code>';
     if (/^https?:\/\//.test(String(v))) return link(v, 'open');
-    if (typeof v === 'string' && /^(success|failure|cancelled|skipped|timed_out|in_progress|queued|completed)$/.test(v)) return pill(v);
+    if (typeof v === 'string' && /^(success|failure|cancelled|skipped|timed-out|other|running|queued|completed)$/.test(v)) return pill(v);
     return esc(v);
   }
   function grid(rows) {

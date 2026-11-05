@@ -27,6 +27,19 @@ API, read-only: nothing here can re-run, cancel or dispatch anything.
 > "Which mains are broken?" — one query over every repository you follow, the latest completed
 > run of every workflow on its watched branch, from GitHub, right now.
 
+## The dev vocabulary
+
+A `WorkflowRun` is a `Build` of the [dev vocabulary](https://github.com/embabel-worlds/realm-dev-vocabulary)
+(`realm-dev-vocabulary`, installed first), and the commit a run built is a `Commit`: beside
+GitHub's own fields every run carries `repositoryKey`, `trigger` (push, change-request,
+schedule, manual, tag), `changeRequestKeys`, `actorKind` (human, bot, agent) and the
+vocabulary's words for `status` (queued, running, completed) and `conclusion` (success,
+failure, cancelled, skipped, timed-out, other); every commit carries `key`, `projectKey` (what
+realm-java-project pins a project by, at that commit), `coAuthors`, `isRevert` and
+`authorKind` — `assisted` when a Co-Authored-By trailer names a coding agent. So "are humans
+or machines more likely to break the build" is a join of `Build` to `Commit` on `sha` and a
+`GROUP BY authorKind`, and it reads the same over any CI system that declares a `Build`.
+
 ## What's inside
 
 - `apis/` — seven GitHub operations, vendored and trimmed from the official OpenAPI document
