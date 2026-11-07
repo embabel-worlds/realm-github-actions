@@ -55,6 +55,12 @@
 - question: "what broke main in {repo}"
   expect: { minRows: 0 }   # honestly empty when main is green
 
+# Who breaks the build — the commit's authorKind (realm-dev-vocabulary), one hop from the run.
+- question: "are humans or machines more likely to break the build in {repo}"
+  expect: { matchesView: { name: ActionsBreakageByAuthorKind, column: brokenPushPct } }
+- question: "do agent-written commits fail CI more often than people's in {repo} in the last 7 days"
+  expect: { matchesView: { name: ActionsBreakageByAuthorKind, column: failedRunPct } }
+
 # The fleet — every followed repository at once.
 - question: "which repositories are we following"
   expect: { matchesView: { name: ActionsWatchlist, column: repo } }

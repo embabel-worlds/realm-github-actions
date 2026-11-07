@@ -1,0 +1,48 @@
+# Who breaks the build: the dev vocabulary's authorKind (realm-dev-vocabulary) on the commit a run
+# BUILT, crossed with the run's conclusion. The run itself knows only who PUSHED (actorKind), which
+# for a merge is whoever clicked the button; the commit knows who wrote it and whether a coding
+# agent co-authored it, so the question "are humans or machines more likely to break the build" is
+# answered on the commit, one hop from the run. The hop is one call per DISTINCT commit (several
+# workflows run per push and share it), cached a week, capped at 150 commits by the join: a window
+# wider than that is refused with the cap named, never silently cut — narrow `since` or `days`.
+# A push is "broken" when any of its runs failed; the per-run figures sit beside it because a
+# repository with six workflows per push would otherwise count one bad commit six times.
+
+- name: ActionsBreakageByAuthorKind
+  description: >-
+    SELECT THIS for "are humans or machines more likely to break the build in owner/repo", "do
+    agent-written commits fail CI more often than people's", "build failure rate by author kind",
+    "who breaks main — people, bots or coding agents", "do Claude's commits break the build". For
+    the completed runs the pushes to a branch triggered in a window: one row per authorKind of the
+    commit each run built — human, assisted (a person's commit whose Co-Authored-By trailer names a
+    coding agent), agent, bot — with the pushes (distinct commits), how many had at least one failing
+    run and that share, then the runs, the failed runs and that share. A commit an agent wrote with
+    no trailer counts as human. One call per distinct commit, cached a week; at most 150 commits per
+    question, so keep the window to what that covers. GitHub's own dynamic workflows (Dependabot,
+    Copilot, dependency submission) are left out: the commit they "built" is just HEAD at the time.
+  params:
+    repo:   { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    branch: { type: string, default: "main", description: "The branch the runs were for; empty for every branch." }
+    event:  { type: string, default: "push", description: "GitHub's event name for what triggered the run: push (the default — a commit landing on the branch), pull_request, schedule, workflow_dispatch." }
+    days:   { type: int, default: 14, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
+    since:  { type: string, default: "1970-01-01T00:00:00Z", description: "ISO-8601 lower bound on created_at; overrides days. The history door holds 62 days." }
+    until:  { type: string, default: "9999-12-31T23:59:59Z", description: "ISO-8601 upper bound (exclusive) on created_at." }
+  cypher: |
+    MATCH (:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH run, run.created_at AS createdAt, run.head_branch AS branch, run.event AS event, run.status AS status,
+         run.path AS path, run.conclusion AS conclusion
+    WHERE createdAt >= $since
+      AND createdAt < $until
+      AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND event = $event
+      AND ($branch = '' OR branch = $branch)
+      AND status = 'completed'
+      AND NOT path STARTS WITH 'dynamic/'
+    MATCH (run)-[:BUILT]->(c:GitHubCommit)
+    WITH c.authorKind AS authorKind, c.sha AS sha, conclusion
+    WITH authorKind, sha, count(*) AS runs, sum(CASE WHEN conclusion = 'failure' THEN 1 ELSE 0 END) AS failedRuns
+    WITH authorKind, count(sha) AS pushes, sum(CASE WHEN failedRuns > 0 THEN 1 ELSE 0 END) AS brokenPushes,
+         sum(runs) AS runs, sum(failedRuns) AS failedRuns
+    RETURN authorKind, pushes, brokenPushes, round(100.0 * brokenPushes / pushes, 1) AS brokenPushPct,
+           runs, failedRuns, round(100.0 * failedRuns / runs, 1) AS failedRunPct
+    ORDER BY pushes DESC

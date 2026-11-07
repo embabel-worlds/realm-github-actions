@@ -204,9 +204,9 @@
       producerKeyFields: [owner, repo, head_sha]
       recordKeyField: commitKey
       producer: commitBySha
-      maxAnchors: 40
-      maxFanoutTotal: 200
-      description: "The commit a run built, with its changed files — for 'what changed', 'what broke main', 'which files did the failing commit touch'."
+      maxAnchors: 150                # distinct commits, not runs: several workflows run per push and share one key. 150 covers two months of pushes to a busy main (113 on embabel-agent), each a call cached a week
+      maxFanoutTotal: 300
+      description: "The commit a run built, with its changed files — for 'what changed', 'what broke main', 'which files did the failing commit touch', and 'who breaks the build' by the commit's authorKind."
   properties:
     sha:
       description: "The commit sha. Identity."

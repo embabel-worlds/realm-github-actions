@@ -33,7 +33,16 @@ def rows_of(d):
     return rows if isinstance(rows, list) else []
 
 def view(name, args):
-    d = post(f'/api/v1/admin/kg/views/{name}/run', {'args': args})
+    """A view's rows and warnings. A 400 is the host refusing an argument the view does not declare
+    (the fleet views take no `repo`); it is retried bare once, and any other refusal is returned as a
+    warning so the check that asked records a FAIL instead of the whole ladder dying mid-run."""
+    try:
+        d = post(f'/api/v1/admin/kg/views/{name}/run', {'args': args})
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors='replace')[:200]
+        if e.code == 400 and 'repo' in args:
+            return view(name, {k: v for k, v in args.items() if k != 'repo'})
+        return [], [f'HTTP {e.code} running view {name} with {args}: {body}']
     return rows_of(d), d.get('warnings') or []
 
 fails = []
@@ -170,6 +179,39 @@ for w in watch_rows:
 rows, warns = view('ActionsBrokenPullRequests', {'since': SINCE, 'until': UNTIL, 'limit': 1000})
 got_pr = set((r['repo'], r['branch'], r['workflow']) for r in rows if r['repo'] in REPOS)
 check(got_pr == set(pr0), 'L2: ActionsBrokenPullRequests == GitHub (latest run per PR branch in the window failed)', f'{sorted(got_pr)} vs {sorted(pr0)}')
+
+# ---- L2 authorship: who broke the build, by the authorKind of the commit each push run built.
+# The window is the harness's own (7 days ending two hours ago), the branch main, the event push,
+# dynamic workflows left out, exactly as the view declares; the commit's authorKind is the dev
+# vocabulary's rule replicated: agent (a Bot whose login names a coding agent), bot (a Bot or a
+# [bot] login), assisted (a Co-Authored-By trailer naming an agent), human, unknown.
+AGENTS = ['copilot', 'claude', 'devin', 'codex', 'cursor', 'aider', 'jules', 'sweep', 'gemini', 'chatgpt', 'openai']
+def author_kind(user_type, login, message):
+    lg = (login or '').lower()
+    if user_type == 'Bot' and any(a in lg for a in AGENTS): return 'agent'
+    if user_type == 'Bot' or lg.endswith('[bot]'): return 'bot'
+    if any(l.lower().startswith('co-authored-by:') and any(a in l.lower() for a in AGENTS) for l in (message or '').split('\n')): return 'assisted'
+    if user_type == 'User': return 'human'
+    return 'unknown'
+pushes = [r for r in runs if r['head_branch'] == 'main' and r['event'] == 'push' and r['status'] == 'completed' and not r['path'].startswith('dynamic/')]
+kinds = {}
+for sha in {r['head_sha'] for r in pushes}:
+    c = gh(f'/repos/{REPO}/commits/{sha}', {}); a = c.get('author') or {}
+    kinds[sha] = author_kind(a.get('type'), a.get('login'), c['commit']['message'])
+per = {}
+for r in pushes:
+    x = per.setdefault(kinds[r['head_sha']], {}).setdefault(r['head_sha'], [0, 0]); x[0] += 1; x[1] += 1 if r['conclusion'] == 'failure' else 0
+def half_up(x):
+    from decimal import Decimal, ROUND_HALF_UP
+    return float(Decimal(str(x)).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP))
+exp_break = {}
+for k, shas in per.items():
+    p_ = len(shas); b = sum(1 for v in shas.values() if v[1] > 0); rr = sum(v[0] for v in shas.values()); fr = sum(v[1] for v in shas.values())
+    exp_break[k] = {'pushes': p_, 'brokenPushes': b, 'brokenPushPct': half_up(100.0 * b / p_), 'runs': rr, 'failedRuns': fr, 'failedRunPct': half_up(100.0 * fr / rr)}
+rows, warns = view('ActionsBreakageByAuthorKind', dict(W, branch='main', event='push'))
+got_break = {r['authorKind']: {k: r[k] for k in ('pushes', 'brokenPushes', 'brokenPushPct', 'runs', 'failedRuns', 'failedRunPct')} for r in rows}
+check(got_break == exp_break, 'L2: ActionsBreakageByAuthorKind per authorKind (pushes, broken, runs, failed, shares) == GitHub (runs x commits)', f'{got_break} vs {exp_break}')
+check(not any('maxAnchors' in w for w in warns), 'L2: ActionsBreakageByAuthorKind window fits the BUILT join cap')
 
 # ---- L2b: the model-backed views run and stay grounded.
 rows, warns = view('ActionsBriefing', dict(W, runs=5))
