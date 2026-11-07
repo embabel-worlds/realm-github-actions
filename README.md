@@ -37,8 +37,17 @@ vocabulary's words for `status` (queued, running, completed) and `conclusion` (s
 failure, cancelled, skipped, timed-out, other); every commit carries `key`, `projectKey` (what
 realm-java-project pins a project by, at that commit), `coAuthors`, `isRevert` and
 `authorKind` — `assisted` when a Co-Authored-By trailer names a coding agent. So "are humans
-or machines more likely to break the build" is a join of `Build` to `Commit` on `sha` and a
-`GROUP BY authorKind`, and it reads the same over any CI system that declares a `Build`.
+or machines more likely to break the build" is one hop from the run to the commit it `BUILT`
+and a `GROUP BY authorKind`, and it reads the same over any CI system that declares a `Build`.
+
+That question is the view `ActionsBreakageByAuthorKind` (`views/authorship.yml`): for the
+completed runs a push to a branch triggered in a window, one row per author kind of the commit
+each run built — pushes (distinct commits), how many had a failing run and that share, then
+runs, failed runs and that share. The hop costs one call per distinct commit, cached a week,
+and is capped at 150 commits per question (the join refuses a wider window with the cap named,
+never a silent cut). On `embabel/embabel-agent`, 24 October to 7 November 2026: 19 human
+pushes, 1 broken (5.3%); 2 assisted pushes, none broken. Both rows equal the figures computed
+from GitHub's runs and commits directly (`tests/verify.sh`, L2).
 
 ## What's inside
 
@@ -141,8 +150,10 @@ ago so an in-flight run cannot move a figure:
   once by id, the slowest run's seconds and id, per-workflow runs and failures, per-day counts,
   failed and passed-on-retry counts, the slowest run's job ids and failed steps against
   GitHub's step conclusions, the workflow count, and the fleet — the latest conclusion per
-  followed repository and workflow, and the red PR branches — against GitHub. The two
-  model-backed views must compose and name only workflows that exist.
+  followed repository and workflow, and the red PR branches — against GitHub; and the
+  breakage by author kind — pushes, broken pushes, runs and failed runs per kind of the commit
+  each run built, the kind replicated from the vocabulary's rule over the commits GitHub
+  returns. The two model-backed views must compose and name only workflows that exist.
 - **L3** runs `tests/questions.yml` through the ask surface: count and superlative questions
   assert `matchesView` twice each (generation is stochastic); the adversarial half is asked
   three times and must return no rows or only declared properties.
@@ -156,6 +167,13 @@ forced failures, the empty watchlist, the badge in the viewport, zero console er
 controls responding while a call is in flight.
 
 Green means: every figure on every surface equals what GitHub says for the same window.
+
+Known red, 7 November 2026: L3. The appliance's ask door routes a question to a realm only when
+the question says the realm's name in lower case (`github`, `actions`); "how many workflow runs
+did owner/repo have" — this battery's first question — names the type and is resolved to no
+realm. That is an engine defect in matching a question's words to a realm's labels
+([embabel/me#3591](https://github.com/embabel/me/issues/3591)); the battery stays as people
+type it and goes green when the fix lands.
 
 ## Honest ledger
 
