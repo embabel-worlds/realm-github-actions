@@ -16,7 +16,7 @@ description: |
   Pin a repository as GitHubRepository {full_name:'owner/repo'} and traverse.
   The anchor is the same label realm-github uses, so a world with both installed
   sees issues and workflow runs on one node.
-version: 0.3.0
+version: 0.3.1
 host: wasm
 author: Rod Johnson
 url: https://github.com/embabel-worlds/realm-github-actions
