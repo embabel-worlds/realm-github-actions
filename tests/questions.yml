@@ -61,6 +61,17 @@
 - question: "do agent-written commits fail CI more often than people's in {repo} in the last 7 days"
   expect: { matchesView: { name: ActionsBreakageByAuthorKind, column: failedRunPct } }
 
+# What a change request cost in CI — the PR's commits (realm-github) crossed with the runs built on
+# them, timed from the jobs. Figures are the harness window's; the views take the same since/until.
+- question: "how long did CI take on each pull request opened in {repo} in the last 7 days"
+  expect: { matchesView: { name: ActionsChangeRequestBuildTime, column: buildMinutes, args: { repo: "{repo}", since: "{since}", until: "{until}" } } }
+- question: "which pull request opened in {repo} in the last 7 days burned the most CI minutes"
+  expect: { matchesView: { name: ActionsChangeRequestBuildTime, column: runnerMinutes, args: { repo: "{repo}", since: "{since}", until: "{until}" } } }
+- question: "how many builds did the pull requests opened in {repo} in the last 7 days need, by author kind"
+  expect: { matchesView: { name: ActionsChangeRequestBuildTimeByAuthorKind, column: builds, args: { repo: "{repo}", since: "{since}", until: "{until}" } } }
+- question: "do the agents' pull requests in {repo} take longer to build than people's"
+  expect: { matchesView: { name: ActionsChangeRequestBuildTimeByAuthorKind, column: meanBuildMinutes, args: { repo: "{repo}", since: "{since}", until: "{until}" } } }
+
 # The fleet — every followed repository at once.
 - question: "which repositories are we following"
   expect: { matchesView: { name: ActionsWatchlist, column: repo } }

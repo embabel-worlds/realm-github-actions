@@ -1,0 +1,107 @@
+# What a change request cost in CI. A pull request's builds are the completed runs a
+# pull_request event triggered on the commits the PR carries, so the join is on the sha the run
+# BUILT and the shas the change request HAS_COMMIT, through realm-github's issue door (the one
+# that pushes `since` to GitHub). It is NOT on GitHub's own `pull_requests` link, which names
+# only pull requests that are OPEN when the run is read — a merged PR has no linked runs by the
+# time anyone asks — and is empty for a fork's PR. The sha join finds both.
+#
+# Time comes from the jobs, not from the run: a run's `updated_at` is "last change", and a
+# fork's run that waited for approval and was failed when the PR closed shows a nine-day "run
+# time" with no job ever started. A run with no job ran nothing and is left out; a run's wall
+# time is first job start to last job end, its runner time the sum of its jobs. One call per
+# run, cached six hours, at most 100 runs per question (the HAS_JOB cap), so a window is a
+# fortnight or so on a busy repository — the join refuses more with the cap named, never cuts.
+#
+# A change request none of whose commits a completed run built is absent here — a docs-only
+# PR under paths-ignore, or one still queued. "Which PRs had no CI" is a different question.
+# Needs realm-github (the change requests and their commits) and realm-dev-vocabulary.
+
+- name: ActionsChangeRequestBuildTime
+  description: >-
+    SELECT THIS for "how long did CI take on each pull request in owner/repo", "PR build time",
+    "which pull request burned the most CI minutes this month", "how many builds did PR 123 need",
+    "how many red builds did each PR have", "runner minutes per pull request". For the change
+    requests OPENED in a window: one row per change request with its author and authorKind,
+    status, commits, the completed builds its commits triggered, how many of them failed, the
+    build minutes in total (wall time of each build, first job start to last job end), the mean
+    and longest build, and the runner minutes (every job's time added up — what the CI bill
+    sees). Builds are matched to the pull request by the commit sha they built, so a fork's PR is
+    counted too. Largest total first.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    since: { type: string, default: "2026-10-25T00:00:00Z", description: "ISO-8601 lower bound on the change request's openedAt, pushed to GitHub. The run history holds 62 days; the jobs hop allows 100 builds per question, so keep the window to a fortnight or so on a busy repository." }
+    until: { type: string, default: "", description: "ISO-8601 upper bound (exclusive) on openedAt; empty for no bound." }
+  cypher: |
+    MATCH (:GitHubRepository {full_name: $repo})-[:HAS_ISSUE]->(pr:Issue)
+    WITH pr, pr.updatedAt AS updatedAt, pr.isChangeRequest AS isPr, pr.openedAt AS openedAt
+    WHERE updatedAt >= $since AND isPr = true AND openedAt >= $since AND ($until = '' OR openedAt < $until)
+    MATCH (pr)-[:HAS_COMMIT]->(c:Commit)
+    WITH pr, collect(c.sha) AS shas
+    MATCH (:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH pr, shas, run, run.created_at AS createdAt, run.event AS event, run.status AS status, run.head_sha AS sha, run.path AS path
+    WHERE createdAt >= $since AND ($until = '' OR createdAt < $until)
+      AND (event = 'pull_request' OR event = 'pull_request_target') AND status = 'completed'
+      AND sha IN shas AND NOT path STARTS WITH 'dynamic/'
+    MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+    WITH pr, shas, run, j, j.started_at AS jobStartedAt, j.completed_at AS jobCompletedAt
+    WHERE jobStartedAt IS NOT NULL AND jobCompletedAt IS NOT NULL
+    WITH pr, shas, run, min(jobStartedAt) AS firstStart, max(jobCompletedAt) AS lastEnd,
+         sum(duration.inSeconds(datetime(jobStartedAt), datetime(jobCompletedAt)).seconds) AS runnerSeconds
+    WITH pr, shas, run, duration.inSeconds(datetime(firstStart), datetime(lastEnd)).seconds AS wallSeconds, runnerSeconds
+    WITH pr, size(shas) AS commits, count(run) AS builds,
+         sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failedBuilds,
+         sum(wallSeconds) AS wallSeconds, avg(wallSeconds) AS meanWallSeconds, max(wallSeconds) AS maxWallSeconds,
+         sum(runnerSeconds) AS runnerSeconds
+    RETURN pr.number AS number, pr.title AS title, pr.authorLogin AS author, pr.authorKind AS authorKind,
+           CASE WHEN pr.mergedAt IS NULL THEN pr.status ELSE 'merged' END AS status, pr.openedAt AS openedAt,
+           commits, builds, failedBuilds,
+           round(wallSeconds / 60.0, 1) AS buildMinutes,
+           round(meanWallSeconds / 60.0, 1) AS meanBuildMinutes,
+           round(maxWallSeconds / 60.0, 1) AS longestBuildMinutes,
+           round(runnerSeconds / 60.0, 1) AS runnerMinutes,
+           pr.sourceUrl AS url
+    ORDER BY buildMinutes DESC, number DESC
+
+- name: ActionsChangeRequestBuildTimeByAuthorKind
+  description: >-
+    SELECT THIS for "do the agents' pull requests take longer to build than people's in
+    owner/repo", "CI minutes per PR by author kind", "do assisted PRs fail CI more often", "how
+    many builds does a human's pull request need compared with a coding agent's", "build time by
+    author kind". For the change requests OPENED in a window whose commits a completed build ran
+    on: one row per authorKind of the change request's author — human, assisted, agent, bot —
+    plus a row for all of them together, with the change requests, their builds, the failed
+    builds and that share (percent), the mean build in minutes, and the build minutes and runner
+    minutes per change request. The same per-build jobs read as ActionsChangeRequestBuildTime, so
+    the same window advice: a fortnight or so on a busy repository.
+  params:
+    repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
+    since: { type: string, default: "2026-10-25T00:00:00Z", description: "ISO-8601 lower bound on the change request's openedAt, pushed to GitHub. The run history holds 62 days; the jobs hop allows 100 builds per question." }
+    until: { type: string, default: "", description: "ISO-8601 upper bound (exclusive) on openedAt; empty for no bound." }
+  cypher: |
+    MATCH (:GitHubRepository {full_name: $repo})-[:HAS_ISSUE]->(pr:Issue)
+    WITH pr, pr.updatedAt AS updatedAt, pr.isChangeRequest AS isPr, pr.openedAt AS openedAt
+    WHERE updatedAt >= $since AND isPr = true AND openedAt >= $since AND ($until = '' OR openedAt < $until)
+    MATCH (pr)-[:HAS_COMMIT]->(c:Commit)
+    WITH pr, collect(c.sha) AS shas
+    MATCH (:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WITH pr, shas, run, run.created_at AS createdAt, run.event AS event, run.status AS status, run.head_sha AS sha, run.path AS path
+    WHERE createdAt >= $since AND ($until = '' OR createdAt < $until)
+      AND (event = 'pull_request' OR event = 'pull_request_target') AND status = 'completed'
+      AND sha IN shas AND NOT path STARTS WITH 'dynamic/'
+    MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+    WITH pr, run, j, j.started_at AS jobStartedAt, j.completed_at AS jobCompletedAt
+    WHERE jobStartedAt IS NOT NULL AND jobCompletedAt IS NOT NULL
+    WITH pr, run, min(jobStartedAt) AS firstStart, max(jobCompletedAt) AS lastEnd,
+         sum(duration.inSeconds(datetime(jobStartedAt), datetime(jobCompletedAt)).seconds) AS runnerSeconds
+    WITH pr, run, duration.inSeconds(datetime(firstStart), datetime(lastEnd)).seconds AS wallSeconds, runnerSeconds
+    WITH pr, count(run) AS builds, sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failedBuilds,
+         sum(wallSeconds) AS wallSeconds, sum(runnerSeconds) AS runnerSeconds
+    UNWIND [pr.authorKind, 'all'] AS kind
+    WITH kind, count(pr) AS changeRequests, sum(builds) AS builds, sum(failedBuilds) AS failedBuilds,
+         sum(wallSeconds) AS wallSeconds, sum(runnerSeconds) AS runnerSeconds
+    RETURN kind AS authorKind, changeRequests, builds, failedBuilds,
+           round(100.0 * failedBuilds / builds, 1) AS failedBuildPct,
+           round(wallSeconds / 60.0 / builds, 1) AS meanBuildMinutes,
+           round(wallSeconds / 60.0 / changeRequests, 1) AS buildMinutesPerChangeRequest,
+           round(runnerSeconds / 60.0 / changeRequests, 1) AS runnerMinutesPerChangeRequest
+    ORDER BY CASE WHEN kind = 'all' THEN 1 ELSE 0 END, changeRequests DESC
