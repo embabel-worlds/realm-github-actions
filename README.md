@@ -49,6 +49,23 @@ never a silent cut). On `embabel/embabel-agent`, 24 October to 7 November 2026: 
 pushes, 1 broken (5.3%); 2 assisted pushes, none broken. Both rows equal the figures computed
 from GitHub's runs and commits directly (`tests/verify.sh`, L2).
 
+What a change request cost in CI is the pair in `views/change-requests.yml`:
+`ActionsChangeRequestBuildTime` (one row per pull request opened in a window: its commits, the
+completed builds its commits triggered, how many failed, the build minutes in total, mean and
+longest, and the runner minutes every job added up to) and
+`ActionsChangeRequestBuildTimeByAuthorKind` (the same per author kind of the pull request's
+author, plus all together). The join is realm-github's: the pull requests through the issue
+door, the one that pushes `since` to GitHub, then each one's commits, and a run is the pull
+request's when the sha it `BUILT` is one of them. It is not GitHub's own `pull_requests` link
+on a run, which names only pull requests still open when the run is read — a merged pull request
+has none by the time anyone asks — and is empty for a fork's pull request. Time comes from the
+jobs: a run's `updated_at` is "last change", and a fork's run that waited for approval shows
+days of "run time" with no job ever started; such a run is left out as having run nothing. On
+`embabel/embabel-agent`, 25 October to 8 November 2026: 14 of the 24 pull requests opened were
+built, 20 builds, 1 failed (Dependabot's); a human's pull request cost 36.6 build minutes and
+59.7 runner minutes on average, an assisted one 28.0 and 50.6. Every figure equals the same walk
+over GitHub's issues, commits, runs and jobs (`tests/verify.sh`, L2).
+
 ## What's inside
 
 - `apis/` — seven GitHub operations, vendored and trimmed from the official OpenAPI document
@@ -62,7 +79,10 @@ from GitHub's runs and commits directly (`tests/verify.sh`, L2).
   summary, slowest, failed, trend, retries, workflows), `jobs.yml` (a run's jobs, slowest jobs, failing steps,
   flaky jobs), `intelligence.yml` (failure themes with `themes()`, the standup briefing with
   `synthesize()`, both in-query), `fleet.yml` (the watchlist, broken mains, broken PRs, and **what broke**: per red workflow the
-  last green run, the first failing run after it, and the commit that run built with its files).
+  last green run, the first failing run after it, and the commit that run built with its files),
+  `authorship.yml` (who breaks the build, by the commit author's kind), `change-requests.yml`
+  (what each pull request cost in CI, and by author kind — needs realm-github for the pull
+  requests and their commits).
 - `lenses/resolve-failure.yml` — **how to fix this**, for one failed run: the failed job's log
   from GitHub, the lines around the failure marker, a web search (Brave, through the research
   realm) for the most diagnostic line, and a model's hint grounded on those lines and pages
@@ -193,7 +213,15 @@ type it and goes green when the fix lands.
 - A run's jobs are looked up through the history door, so a run older than 62 days has none
   here; GitHub's page shows them.
 - `pr_numbers` is usually empty: GitHub links pull requests to a run only in some cases.
-  Broken PRs are identified by branch and title.
+  Broken PRs are identified by branch and title; a pull request's builds (the change-request
+  views) by the commit sha the run built.
+- Engine floor, 9 November 2026: the two change-request views need an appliance at or after
+  [embabel/me#3664](https://github.com/embabel/me/pull/3664) (merged 9 November). Before it, a
+  `WHERE alias IN list` placed before a virtual hop was replayed into the hop's probe, where the
+  alias is unbound, and the engine refused them with "Variable `sha` not defined"
+  ([embabel/me#3660](https://github.com/embabel/me/issues/3660)). The views are spelled the way
+  the realm teaches the generator to spell a filter; their figures were reconciled against
+  GitHub through an equivalent spelling while the fix was in flight.
 
 ## Licence
 

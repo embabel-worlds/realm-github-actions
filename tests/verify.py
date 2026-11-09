@@ -213,6 +213,62 @@ got_break = {r['authorKind']: {k: r[k] for k in ('pushes', 'brokenPushes', 'brok
 check(got_break == exp_break, 'L2: ActionsBreakageByAuthorKind per authorKind (pushes, broken, runs, failed, shares) == GitHub (runs x commits)', f'{got_break} vs {exp_break}')
 check(not any('maxAnchors' in w for w in warns), 'L2: ActionsBreakageByAuthorKind window fits the BUILT join cap')
 
+# ---- L2c: what a change request cost in CI. The views cross realm-github's issue door (the PRs
+# opened in the window, their commits one call each) with the runs by the sha each built, then
+# time every build from its jobs. Ground truth is the same walk on GitHub: the PRs' commit shas,
+# the completed pull_request runs requested in the window on those shas (dynamic workflows out),
+# each run's timed jobs — a run with no timed job ran nothing (a fork's run that waited for
+# approval and was failed) and is left out, exactly as the views leave it out. The PR's authorKind
+# is the Issue contract's rule, which reads the PR body as well as the author's type and login.
+def pr_kind(i):
+    t, lg, body = i['user']['type'], (i['user']['login'] or '').lower(), i.get('body') or ''
+    if t == 'Bot' and any(a in lg for a in AGENTS): return 'agent'
+    if t == 'Bot' or i.get('performed_via_github_app') is not None: return 'bot'
+    if any(l.lower().startswith('co-authored-by:') and any(a in l.lower() for a in AGENTS) for l in body.split('\n')) or 'Generated with [Claude Code]' in body: return 'assisted'
+    return 'human' if t == 'User' else 'unknown'
+def gh_pages(path, params, max_pages, key=None):
+    out = []
+    for p in range(1, max_pages + 1):
+        d = gh(path, {**params, 'per_page': 100, 'page': p}); batch = d[key] if key else d
+        out += batch
+        if len(batch) < 100: break
+    return out
+cr_prs = [i for i in gh_pages(f'/repos/{REPO}/issues', {'state': 'all', 'since': SINCE}, 10) if i.get('pull_request') and SINCE <= i['created_at'] < UNTIL]
+cr_runs = {}
+for ev in ('pull_request', 'pull_request_target'):
+    for r in gh_pages(f'/repos/{REPO}/actions/runs', {'created': f'{SINCE}..{UNTIL}', 'event': ev, 'status': 'completed'}, 10, 'workflow_runs'):
+        if SINCE <= r['created_at'] < UNTIL and not r['path'].startswith('dynamic/'): cr_runs.setdefault(r['head_sha'], []).append(r)
+def timed(run):
+    jobs = [j for j in gh_pages(f'/repos/{REPO}/actions/runs/{run["id"]}/jobs', {'filter': 'all'}, 3, 'jobs') if j.get('started_at') and j.get('completed_at')]
+    return None if not jobs else (secs(min(j['started_at'] for j in jobs), max(j['completed_at'] for j in jobs)), sum(secs(j['started_at'], j['completed_at']) for j in jobs))
+exp_cr, kinds = {}, {}
+for i in cr_prs:
+    shas = [c['sha'] for c in gh_pages(f'/repos/{REPO}/pulls/{i["number"]}/commits', {}, 3)]
+    built = [(r, t) for s in shas for r in cr_runs.get(s, []) for t in [timed(r)] if t is not None]
+    if not built: continue
+    wall, runner = [t[0] for _, t in built], [t[1] for _, t in built]
+    exp_cr[i['number']] = {'authorKind': pr_kind(i), 'status': 'merged' if i['pull_request'].get('merged_at') else i['state'], 'commits': len(shas),
+                           'builds': len(built), 'failedBuilds': sum(1 for r, _ in built if r['conclusion'] == 'failure'),
+                           'buildMinutes': half_up(sum(wall) / 60.0), 'meanBuildMinutes': half_up(sum(wall) / len(wall) / 60.0),
+                           'longestBuildMinutes': half_up(max(wall) / 60.0), 'runnerMinutes': half_up(sum(runner) / 60.0)}
+    for k in (exp_cr[i['number']]['authorKind'], 'all'):
+        a = kinds.setdefault(k, {'changeRequests': 0, 'builds': 0, 'failedBuilds': 0, 'wall': 0, 'runner': 0})
+        a['changeRequests'] += 1; a['builds'] += len(built); a['failedBuilds'] += exp_cr[i['number']]['failedBuilds']; a['wall'] += sum(wall); a['runner'] += sum(runner)
+exp_kind = {k: {'changeRequests': a['changeRequests'], 'builds': a['builds'], 'failedBuilds': a['failedBuilds'],
+                'failedBuildPct': half_up(100.0 * a['failedBuilds'] / a['builds']), 'meanBuildMinutes': half_up(a['wall'] / 60.0 / a['builds']),
+                'buildMinutesPerChangeRequest': half_up(a['wall'] / 60.0 / a['changeRequests']),
+                'runnerMinutesPerChangeRequest': half_up(a['runner'] / 60.0 / a['changeRequests'])} for k, a in kinds.items()}
+CR_COLS = ('authorKind', 'status', 'commits', 'builds', 'failedBuilds', 'buildMinutes', 'meanBuildMinutes', 'longestBuildMinutes', 'runnerMinutes')
+rows, warns = view('ActionsChangeRequestBuildTime', W)
+got_cr = {r['number']: {k: r[k] for k in CR_COLS} for r in rows}
+check(got_cr == exp_cr, 'L2: ActionsChangeRequestBuildTime every change request built in the window (commits, builds, failed, minutes from the jobs) == GitHub', f'{got_cr} vs {exp_cr}')
+check([r['number'] for r in rows] == sorted(exp_cr, key=lambda n: (-exp_cr[n]['buildMinutes'], -n)), 'L2: ActionsChangeRequestBuildTime is ordered by build minutes, then newest')
+check(not any('maxAnchors' in w or 'PARTIAL' in w for w in warns), 'L2: ActionsChangeRequestBuildTime window fits the commits and jobs caps with no partial read', [w[:100] for w in warns])
+if not exp_cr: print(f'NOTE L2: no change request opened in the window was built ({len(cr_prs)} opened); the views are asserted empty')
+rows, warns = view('ActionsChangeRequestBuildTimeByAuthorKind', W)
+got_kind = {r['authorKind']: {k: r[k] for k in exp_kind.get('all', {}).keys() or ('changeRequests',)} for r in rows}
+check(got_kind == exp_kind, 'L2: ActionsChangeRequestBuildTimeByAuthorKind per authorKind and all (change requests, builds, failed, share, minutes) == GitHub', f'{got_kind} vs {exp_kind}')
+
 # ---- L2b: the model-backed views run and stay grounded.
 rows, warns = view('ActionsBriefing', dict(W, runs=5))
 brief = rows[0]['briefing'] if rows else ''
@@ -273,7 +329,7 @@ for entry in battery:
             # When the pipeline SELECTED the view it binds its own window (a date literal); reconcile
             # against the view run with THAT window, so a bound-but-honest window is not a failure
             # and a composed query with a different figure still is.
-            args = dict({'repo': REPO}, **{k: (str(val).replace('{repo}', REPO) if isinstance(val, str) else val) for k, val in mv.get('args', {}).items()})
+            args = dict({'repo': REPO}, **{k: (str(val).replace('{repo}', REPO).replace('{since}', SINCE).replace('{until}', UNTIL) if isinstance(val, str) else val) for k, val in mv.get('args', {}).items()})
             m_since = re.search(r"created_at >= '(\d{4}-\d{2}-\d{2}(?:T[^']+)?)'", cypher or '')
             m_until = re.search(r"created_at < '(\d{4}-\d{2}-\d{2}(?:T[^']+)?)'", cypher or '')
             norm = lambda s: s if 'T' in s else s + 'T00:00:00Z'
