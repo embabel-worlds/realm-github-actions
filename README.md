@@ -216,7 +216,7 @@ type it and goes green when the fix lands.
   Broken PRs are identified by branch and title; a pull request's builds (the change-request
   views) by the commit sha the run built.
 - Engine floor, 9 November 2026: the two change-request views need an appliance at or after
-  [embabel/me#3664](https://github.com/embabel/me/pull/3664) (merged 9 November). Before it, a
+  [embabel/me#3664](https://github.com/embabel/me/pull/3664) (merged 9 November; both views and the harness's L2c rung verified green on the `sha-98cc49c` image the same day). Before it, a
   `WHERE alias IN list` placed before a virtual hop was replayed into the hop's probe, where the
   alias is unbound, and the engine refused them with "Variable `sha` not defined"
   ([embabel/me#3660](https://github.com/embabel/me/issues/3660)). The views are spelled the way
