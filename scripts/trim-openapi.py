@@ -32,7 +32,9 @@ def main(src, dst, op_ids):
         kept_ops = {}
         for method, op in item.items():
             if isinstance(op, dict) and op.get("operationId") in wanted:
-                kept_ops[method] = op
+                if method != "get":
+                    sys.exit(f"GitHub Actions operations must be GET: {op['operationId']}")
+                kept_ops[method] = {k: v for k, v in op.items() if k != "security"}
         if kept_ops:
             # keep path-level parameters etc. alongside the kept operations
             extras = {k: v for k, v in item.items() if not isinstance(v, dict) or "operationId" not in v}
@@ -56,7 +58,7 @@ def main(src, dst, op_ids):
                 sys.exit(f"unresolvable $ref: {r}")
         frontier = nxt - refs
 
-    # Rebuild components containing only referenced members (+ all securitySchemes).
+    # Rebuild components containing only referenced members.
     components = {}
     for r in sorted(refs):
         parts = r[2:].split("/")
@@ -64,8 +66,7 @@ def main(src, dst, op_ids):
             continue
         section, name = parts[1], "/".join(parts[2:]).replace("~1", "/").replace("~0", "~")
         components.setdefault(section, {})[name] = spec["components"][section][name]
-    if "securitySchemes" in spec.get("components", {}):
-        components["securitySchemes"] = spec["components"]["securitySchemes"]
+    components["securitySchemes"] = {"bearerAuth": {"type": "http", "scheme": "bearer"}}
 
     out = {
         "openapi": spec["openapi"],
@@ -74,8 +75,7 @@ def main(src, dst, op_ids):
         "paths": kept_paths,
         "components": components,
     }
-    if "security" in spec:
-        out["security"] = spec["security"]
+    out["security"] = [{"bearerAuth": []}]
     json.dump(out, open(dst, "w"), separators=(",", ":"))
     import os
     print(f"{os.path.getsize(src) / 1e6:.1f}MB -> {os.path.getsize(dst) / 1e3:.0f}KB, "
