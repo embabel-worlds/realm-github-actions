@@ -15,6 +15,10 @@
 # renders into `created` as '>=DATE'. Views that take a relative window (`days`) filter in
 # the graph, because a producer argument is static and cannot say 'seven days before now'.
 #
+# RATE. GitHub counts 5,000 calls an hour for a token: a budget, not a speed. `burst: 60` lets a
+# question that needs sixty calls make them at once when the budget has stood idle, where spacing
+# every call at the hourly rate made it wait 0.72 s before each. Calls past the burst are spaced.
+#
 # Numeric fields are typed on the types (types/actions.yml), so they arrive as numbers.
 
 - name: runsByRepo
@@ -73,7 +77,7 @@
     startedAt: "r.run_started_at"
     finishedAt: "CASE r.status WHEN 'completed' THEN r.updated_at ELSE '' END"
     sourceUrl: "r.html_url"
-  cost: { bucket: github-core, rate: 5000/hour }
+  cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
   cache: { kind: ttl, seconds: 600, negativeTtlSeconds: 600 }
 
 # No pushdown: the workflows endpoint takes no filter, so a filtered question is answered by
@@ -95,7 +99,7 @@
     path: path
     state: state
     html_url: html_url
-  cost: { bucket: github-core, rate: 5000/hour }
+  cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
   cache: { kind: ttl, seconds: 21600, negativeTtlSeconds: 3600 }
 
 # Jobs of ONE run, every attempt (filter=all), so a retry shows as the same job name twice
@@ -133,7 +137,7 @@
     html_url: html_url
     step_names: "steps[*].name"
     step_conclusions: "steps[*].conclusion"
-  cost: { bucket: github-core, rate: 5000/hour }
+  cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
   # The jobs of a completed run never change; six hours is the window for the rare run still in
   # progress when it was opened. The envelope reports when each run's jobs were read.
   cache: { kind: ttl, seconds: 21600, negativeTtlSeconds: 600 }
@@ -175,7 +179,7 @@
     revertsSha: "coalesce(head([l IN split(coalesce(r.message, ''), '\\n') WHERE l STARTS WITH 'This reverts commit ' | split(substring(l, 20), '.')[0]]), '')"
     filesChanged: "size(coalesce(r.files, []))"
     sourceUrl: "r.html_url"
-  cost: { bucket: github-core, rate: 5000/hour }
+  cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
   cache: { kind: ttl, seconds: 604800, negativeTtlSeconds: 3600 }
 
 # Annotations of ONE job. A job id IS its check-run id. The CheckAnnotation join composes the
@@ -204,7 +208,7 @@
   compute:
     title: "CASE r.title WHEN '' THEN null ELSE r.title END"
     raw_details: "CASE r.raw_details WHEN '' THEN null ELSE r.raw_details END"
-  cost: { bucket: github-core, rate: 5000/hour }
+  cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
   # Annotations of a finished check run never change.
   cache: { kind: ttl, seconds: 86400, negativeTtlSeconds: 3600 }
 
@@ -266,5 +270,5 @@
     startedAt: "r.run_started_at"
     finishedAt: "CASE r.status WHEN 'completed' THEN r.updated_at ELSE '' END"
     sourceUrl: "r.html_url"
-  cost: { bucket: github-core, rate: 5000/hour }
+  cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
   cache: { kind: ttl, seconds: 1800, negativeTtlSeconds: 1800 }
