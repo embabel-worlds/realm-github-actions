@@ -28,6 +28,7 @@
   args:
     per_page: 100
   paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 10 }
+  orderedBy: [{ property: created_at, descending: true }]      # GitHub lists runs newest first, so the latest N are on the first pages
   pushdown:
     - { property: head_branch, op: EQUALS, argPath: branch, clause: "{value}" }
     - { property: event, op: EQUALS, argPath: event, clause: "{value}" }
