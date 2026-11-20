@@ -120,3 +120,44 @@
            [x IN runsHit | CASE WHEN x.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(x.path, '/')[1] ELSE x.name END][0] AS workflow,
            [x IN runsHit[0..3] | x.html_url] AS exampleRuns
     ORDER BY timesFlaked DESC, job ASC
+
+# A RED BRANCH, read against every other branch's latest run: is the failure this branch's own?
+- name: ActionsIsItMe
+  description: >-
+    SELECT THIS when a branch's build is red, before reading any log: "is this failure mine", "is
+    main broken", "are these jobs failing for everyone". For the branch's latest completed run that
+    failed: each failed job, the step that failed in it, and on how many OTHER branches' latest
+    completed runs the same job also failed, among the repository's most recent runs — with those
+    branches named, and whether the default branch is one of them. `verdict` reads: `failing
+    elsewhere too` (the same job is red on at least two other branches, or on the default branch:
+    look there first, it is probably not this change), `also on one other branch`, or `only on this
+    branch` (it is this change, or a flake: read the log). Job granularity: which test failed
+    inside the job is in its log, not here. THE answer for "is it me", "did I break it", "is this failing for everyone". The repository must be followed.
+  params:
+    repo: { type: string, description: "owner/name." }
+    branch: { type: string, description: "The branch whose build is red." }
+    main: { type: string, default: "main", description: "The repository's default branch." }
+    runs: { type: int, default: 20, description: "How many of the repository's most recent completed runs to look across. Each costs one call to GitHub for its jobs." }
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
+    WHERE run.status = 'completed' AND run.conclusion IN ['failure', 'success']
+    /* Narrowed here, by a LIMIT the engine can apply before it asks for jobs: one call per run it keeps. */
+    WITH run ORDER BY run.created_at DESC LIMIT $runs
+    MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
+    WITH run, collect(CASE WHEN j.conclusion = 'failure' THEN {job: j.name, url: j.html_url,
+           steps: [i IN range(0, size(coalesce(j.step_names, [])) - 1) WHERE j.step_conclusions[i] = 'failure' | j.step_names[i]]} END) AS failedJobs
+    WITH run.head_branch AS branch, run.name AS workflow, run.created_at AS at, run.conclusion AS conclusion, failedJobs
+    ORDER BY at DESC
+    /* each branch's latest completed run of each workflow, among those */
+    WITH branch, workflow, collect({conclusion: conclusion, jobs: failedJobs})[0] AS latest
+    WHERE latest.conclusion = 'failure'
+    WITH collect({branch: branch, workflow: workflow, jobs: latest.jobs}) AS red
+    WITH reduce(all = [], b IN red | all + [j IN b.jobs | {branch: b.branch, workflow: b.workflow, job: j.job, steps: j.steps, url: j.url}]) AS failed
+    UNWIND [f IN failed WHERE f.branch = $branch] AS mine
+    WITH mine, [f IN failed WHERE f.branch <> $branch AND f.workflow = mine.workflow AND f.job = mine.job | f.branch] AS elsewhere
+    RETURN mine.workflow AS workflow, mine.job AS job, mine.steps AS failedSteps,
+           size(elsewhere) AS otherBranchesFailingIt, $main IN elsewhere AS failingOnMain, elsewhere[0..8] AS branches,
+           CASE WHEN $main IN elsewhere OR size(elsewhere) >= 2 THEN 'failing elsewhere too'
+                WHEN size(elsewhere) = 1 THEN 'also on one other branch' ELSE 'only on this branch' END AS verdict,
+           mine.url AS link
+    ORDER BY otherBranchesFailingIt DESC, job
