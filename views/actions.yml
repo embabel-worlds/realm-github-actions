@@ -56,6 +56,7 @@
     WHERE createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
     WITH count(run) AS runs,
          sum(CASE WHEN run.status = 'completed' THEN 1 ELSE 0 END) AS completed,
          sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed,
@@ -84,6 +85,7 @@
       AND createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
       AND status = 'completed'
     WITH run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds,
          duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds
@@ -116,6 +118,7 @@
       AND createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
     WITH actor, count(run) AS runs,
          sum(CASE WHEN conclusion = 'failure' THEN 1 ELSE 0 END) AS failed,
          collect(DISTINCT repo) AS repos
@@ -168,6 +171,7 @@
     WHERE createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
       AND status = 'completed'
     WITH CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds, duration.inSeconds(datetime(run.created_at), datetime(run.run_started_at)).seconds AS queueSeconds
     WITH workflow, count(run) AS runs,
@@ -201,6 +205,7 @@
     WHERE createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
       AND status = 'completed'
     WITH run, createdAt, duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds AS runSeconds
     ORDER BY runSeconds DESC, createdAt DESC
@@ -232,6 +237,7 @@
     WHERE createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
       AND conclusion = 'failure'
       AND ($branch = '' OR branch = $branch)
     WITH run, createdAt ORDER BY createdAt DESC
@@ -261,6 +267,7 @@
     WHERE createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
     WITH substring(run.created_at, 0, 10) AS day, run,
          CASE WHEN run.status = 'completed' THEN duration.inSeconds(datetime(run.run_started_at), datetime(run.updated_at)).seconds ELSE null END AS runSeconds
     RETURN day, count(run) AS runs,
@@ -286,6 +293,7 @@
     WHERE createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
       AND attempt > 1 AND conclusion = 'success'
     WITH run, createdAt ORDER BY createdAt DESC
     WITH collect({runId: toInteger(run.id), workflow: CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END, title: run.display_title,
