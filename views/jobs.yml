@@ -137,12 +137,13 @@
     repo: { type: string, description: "owner/name." }
     branch: { type: string, description: "The branch whose build is red." }
     main: { type: string, default: "main", description: "The repository's default branch." }
-    runs: { type: int, default: 20, description: "How many of the repository's most recent completed runs to look across. Each costs one call to GitHub for its jobs." }
+    runs: { type: int, default: 40, description: "How many of the repository's most recent runs to look across; those still running are left out. Each completed one costs one call to GitHub for its jobs." }
   cypher: |
-    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_RUN_HISTORY]->(run:WorkflowRun)
-    WHERE run.status = 'completed' AND run.conclusion IN ['failure', 'success']
-    /* Narrowed here, by a LIMIT the engine can apply before it asks for jobs: one call per run it keeps. */
+    /* The newest runs, through the door that lists them newest first: the first page or two, not a history
+       walked day by day. No filter before the LIMIT, so the source is asked for exactly that many. */
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
     WITH run ORDER BY run.created_at DESC LIMIT $runs
+    WITH run WHERE run.status = 'completed' AND run.conclusion IN ['failure', 'success']
     MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
     WITH run, collect(CASE WHEN j.conclusion = 'failure' THEN {job: j.name, url: j.html_url,
            steps: [i IN range(0, size(coalesce(j.step_names, [])) - 1) WHERE j.step_conclusions[i] = 'failure' | j.step_names[i]]} END) AS failedJobs
