@@ -143,6 +143,9 @@
       type: int
       description: "1 for a first run; higher means it was re-run. A success with run_attempt > 1 passed on retry."
     created_at: "When the run was requested (ISO 8601)."
+    sequence:
+      type: int
+      description: "The run id as a number: GitHub numbers runs as it creates them and lists them newest first by it, so ORDER BY run.sequence DESC is the order the source keeps. created_at is not: two runs a second apart can be listed out of their created_at order."
     run_started_at: "When the latest attempt started executing (ISO 8601). Minus created_at is time spent queued."
     updated_at: "Last change; for a completed run, when it finished (ISO 8601)."
     html_url: "Link to the run on GitHub."
