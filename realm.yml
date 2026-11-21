@@ -16,7 +16,13 @@ description: |
   Pin a repository as GitHubRepository {full_name:'owner/repo'} and traverse.
   The anchor is the same label realm-github uses, so a world with both installed
   sees issues and workflow runs on one node.
-version: 0.3.3
+version: 0.3.4
+requires:
+  # WorkflowRun is a Build and GitHubCommit a Commit of the dev vocabulary.
+  dev-vocabulary: "[0.3.0,1.0.0)"
+  # The change-request views join builds to the pull requests realm-github reads
+  # (Issue rows with isChangeRequest); 0.9.0 is the first release they were verified on.
+  github: "[0.9.0,1.0.0)"
 host: wasm
 author: Rod Johnson
 url: https://github.com/embabel-worlds/realm-github-actions
