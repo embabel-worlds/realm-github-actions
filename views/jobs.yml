@@ -131,7 +131,10 @@
     branches named, and whether the default branch is one of them. `verdict` reads: `failing
     elsewhere too` (the same job is red on at least two other branches, or on the default branch:
     look there first, it is probably not this change), `also on one other branch`, or `only on this
-    branch` (it is this change, or a flake: read the log). Job granularity: which test failed
+    branch` (it is this change, or a flake: read the log). Asked about the default branch itself, `failing on
+    main only` or `failing on main, and on other branches too`. When nothing failed, one row says why: `green`
+    (the branch's latest completed runs passed) or `not seen` (none of its runs is among the latest `runs`;
+    raise it). Job granularity: which test failed
     inside the job is in its log, not here. THE answer for "is it me", "did I break it", "is this failing for everyone". The repository must be followed.
   params:
     repo: { type: string, description: "owner/name." }
@@ -140,25 +143,37 @@
     runs: { type: int, default: 40, description: "How many of the repository's most recent runs to look across; those still running are left out. Each completed one costs one call to GitHub for its jobs." }
   cypher: |
     /* The newest runs, through the door that lists them newest first: the first page or two, not a history
-       walked day by day. No filter before the LIMIT, so the source is asked for exactly that many. */
+       walked day by day. No filter before the LIMIT, so the source is asked for exactly that many, and in the
+       order it keeps (run id, held numerically as sequence), so it can stop there. */
     MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
-    WITH run ORDER BY run.created_at DESC LIMIT $runs
+    WITH run ORDER BY run.sequence DESC LIMIT $runs
     WITH run WHERE run.status = 'completed' AND run.conclusion IN ['failure', 'success']
     MATCH (run)-[:HAS_JOB]->(j:WorkflowJob)
     WITH run, collect(CASE WHEN j.conclusion = 'failure' THEN {job: j.name, url: j.html_url,
            steps: [i IN range(0, size(coalesce(j.step_names, [])) - 1) WHERE j.step_conclusions[i] = 'failure' | j.step_names[i]]} END) AS failedJobs
-    WITH run.head_branch AS branch, run.name AS workflow, run.created_at AS at, run.conclusion AS conclusion, failedJobs
-    ORDER BY at DESC
+    WITH run.head_branch AS branch, run.name AS workflow, run.sequence AS seq, run.conclusion AS conclusion, failedJobs
+    ORDER BY seq DESC
     /* each branch's latest completed run of each workflow, among those */
     WITH branch, workflow, collect({conclusion: conclusion, jobs: failedJobs})[0] AS latest
-    WHERE latest.conclusion = 'failure'
-    WITH collect({branch: branch, workflow: workflow, jobs: latest.jobs}) AS red
-    WITH reduce(all = [], b IN red | all + [j IN b.jobs | {branch: b.branch, workflow: b.workflow, job: j.job, steps: j.steps, url: j.url}]) AS failed
-    UNWIND [f IN failed WHERE f.branch = $branch] AS mine
-    WITH mine, [f IN failed WHERE f.branch <> $branch AND f.workflow = mine.workflow AND f.job = mine.job | f.branch] AS elsewhere
+    WITH collect({branch: branch, workflow: workflow, conclusion: latest.conclusion, jobs: latest.jobs}) AS latestRuns
+    WITH [b IN latestRuns WHERE b.branch = $branch] AS mineRuns,
+         reduce(all = [], b IN latestRuns | all + CASE WHEN b.conclusion = 'failure'
+           THEN [x IN b.jobs | {branch: b.branch, workflow: b.workflow, job: x.job, steps: x.steps, url: x.url}] ELSE [] END) AS failed
+    WITH mineRuns, failed, [f IN failed WHERE f.branch = $branch] AS mineFailed
+    /* One row per failed job; one row saying why when there is none, never an empty answer that reads as green. */
+    UNWIND (CASE WHEN size(mineFailed) = 0 THEN [null] ELSE mineFailed END) AS mine
+    WITH mine, mineRuns,
+         CASE WHEN mine IS NULL THEN [] ELSE [f IN failed WHERE f.branch <> $branch AND f.workflow = mine.workflow AND f.job = mine.job | f.branch] END AS elsewhere
     RETURN mine.workflow AS workflow, mine.job AS job, mine.steps AS failedSteps,
-           size(elsewhere) AS otherBranchesFailingIt, $main IN elsewhere AS failingOnMain, elsewhere[0..8] AS branches,
-           CASE WHEN $main IN elsewhere OR size(elsewhere) >= 2 THEN 'failing elsewhere too'
+           size(elsewhere) AS otherBranchesFailingIt,
+           (mine IS NOT NULL AND $branch = $main) OR $main IN elsewhere AS failingOnMain,
+           elsewhere[0..8] AS branches,
+           CASE WHEN mine IS NULL AND size(mineRuns) = 0
+                  THEN 'not seen: no completed run of this branch among the latest ' + toString($runs) + ' runs; raise runs, or the branch has not run lately'
+                WHEN mine IS NULL THEN 'green: the latest completed run of every workflow on this branch passed'
+                WHEN $branch = $main AND size(elsewhere) >= 1 THEN 'failing on main, and on other branches too'
+                WHEN $branch = $main THEN 'failing on main only'
+                WHEN $main IN elsewhere OR size(elsewhere) >= 2 THEN 'failing elsewhere too'
                 WHEN size(elsewhere) = 1 THEN 'also on one other branch' ELSE 'only on this branch' END AS verdict,
            mine.url AS link
     ORDER BY otherBranchesFailingIt DESC, job
