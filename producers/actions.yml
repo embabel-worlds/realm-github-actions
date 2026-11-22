@@ -49,6 +49,7 @@
     workflow_id: workflow_id
     path: path
     display_title: display_title
+    head_commit_message: head_commit.message
     head_branch: head_branch
     head_sha: head_sha
     event: event
@@ -73,6 +74,7 @@
     conclusion: "CASE r.conclusion WHEN 'timed_out' THEN 'timed-out' WHEN 'success' THEN 'success' WHEN 'failure' THEN 'failure' WHEN 'cancelled' THEN 'cancelled' WHEN 'skipped' THEN 'skipped' WHEN null THEN '' ELSE 'other' END"
     trigger: "CASE r.event WHEN 'push' THEN 'push' WHEN 'pull_request' THEN 'change-request' WHEN 'pull_request_target' THEN 'change-request' WHEN 'schedule' THEN 'schedule' WHEN 'workflow_dispatch' THEN 'manual' WHEN 'release' THEN 'tag' ELSE 'other' END"
     branch: "r.head_branch"
+    headCommitTitle: "split(coalesce(r.head_commit_message, ''), '\\n')[0]"   # the commit's whole first line: GitHub cuts display_title at about 70 characters, which loses a trailing (#1234)
     sha: "r.head_sha"
     changeRequestKeys: "[n IN coalesce(r.pr_numbers, []) | 'github.com/' + toLower(split(r.html_url, '/')[3] + '/' + split(r.html_url, '/')[4]) + '#' + toString(n)]"
     actorLogin: "r.actor"

@@ -131,6 +131,7 @@
       description: "Numeric id of the Workflow this is a run of. An integer, while Workflow.id is a string: match them with toInteger(wf.id) = run.workflow_id."
     path: "The workflow file that ran."
     display_title: "What GitHub shows as the run's title — the commit or PR title."
+    headCommitTitle: "The first line of the commit the run is for, whole. GitHub cuts display_title at about 70 characters, which can lose a trailing pull request number such as (#1234); read this one for it. Set on the live door (HAS_WORKFLOW_RUN)."
     head_branch: "Branch the run was for, e.g. main."
     head_sha: "Commit the run built."
     event: "What triggered it: push, pull_request, schedule, workflow_dispatch, ..."
