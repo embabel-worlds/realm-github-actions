@@ -6,7 +6,7 @@
 
 - name: ActionsRunJobs
   description: >-
-    The jobs of ONE run with each job's run time, conclusion, runner and the step that failed —
+    The jobs of one run, slowest first, with the step that failed. The jobs of ONE run with each job's run time, conclusion, runner and the step that failed —
     slowest job first. THE answer for "why was this run slow", "which job failed in run X",
     "what step broke". Give the run id from ActionsSlowestRuns or ActionsFailedRuns.
   params:
@@ -33,7 +33,7 @@
 
 - name: ActionsSlowestJobs
   description: >-
-    The longest jobs inside the slowest runs of a window — which job is actually eating the
+    The longest jobs inside the slowest runs of a window. The longest jobs inside the slowest runs of a window — which job is actually eating the
     time, slowest first, with its run, workflow and link. "Slowest jobs", "where does build
     time go", "which job is the bottleneck". Reads the jobs of the `runs` slowest runs only.
   params:
@@ -64,7 +64,7 @@
 
 - name: ActionsFailingSteps
   description: >-
-    Which job and step fail most: the failed jobs inside the most recent failed runs of a
+    The jobs and steps that fail most in recent failed runs. Which job and step fail most: the failed jobs inside the most recent failed runs of a
     window, grouped by job name and failed step, most frequent first, with example run links.
     THE answer for "what keeps failing", "most common failure", "which step breaks most".
     Deterministic — counts, not a model's opinion. Opens the jobs of the `runs` newest failed runs.
@@ -95,7 +95,7 @@
 
 - name: ActionsFlakyJobs
   description: >-
-    Jobs that failed and then passed on a re-run of the same run — the job-level flakiness
+    Jobs that failed and then passed on a re-run of the same run. Jobs that failed and then passed on a re-run of the same run — the job-level flakiness
     list, most often first, with the runs it happened in. "Flaky jobs", "flaky tests" (at job
     granularity), "which job do we keep re-running". Opens the jobs of runs that passed on retry.
   params:
@@ -124,7 +124,7 @@
 # A RED BRANCH, read against every other branch's latest run: is the failure this branch's own?
 - name: ActionsIsItMe
   description: >-
-    SELECT THIS when a branch's build is red, before reading any log: "is this failure mine", "is
+    For a red branch: each failed job, and whether it fails elsewhere too. SELECT THIS when a branch's build is red, before reading any log: "is this failure mine", "is
     main broken", "are these jobs failing for everyone". For the branch's latest completed run that
     failed: each failed job, the step that failed in it, and on how many OTHER branches' latest
     completed runs the same job also failed, among the repository's most recent runs — with those
@@ -137,8 +137,8 @@
     raise it). Job granularity: which test failed
     inside the job is in its log, not here. THE answer for "is it me", "did I break it", "is this failing for everyone". The repository must be followed.
   params:
-    repo: { type: string, description: "owner/name." }
-    branch: { type: string, description: "The branch whose build is red." }
+    repo: { type: string, required: true, description: "The repository as owner/name, exactly; it must be followed (ActionsWatchlist)." }
+    branch: { type: string, required: true, description: "The branch whose build is red." }
     main: { type: string, default: "main", description: "The repository's default branch." }
     runs: { type: int, default: 40, description: "How many of the repository's most recent runs to look across; those still running are left out. Each completed one costs one call to GitHub for its jobs." }
   cypher: |

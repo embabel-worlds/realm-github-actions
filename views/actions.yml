@@ -40,7 +40,7 @@
 
 - name: ActionsRunCount
   description: >-
-    SELECT THIS for any COUNT or RATE over a repository's runs: "how many workflow runs did
+    How many runs a repository had in a window, and how many failed. SELECT THIS for any COUNT or RATE over a repository's runs: "how many workflow runs did
     owner/repo have in the last N days", "how many builds failed in owner/repo in the last N
     days", "what is the CI success rate for owner/repo", "how many builds ran". One row: runs,
     completed, succeeded, failed, cancelled, successRatePct. Do not compose these from the
@@ -67,11 +67,11 @@
 
 - name: ActionsRunTime
   description: >-
-    SELECT THIS for "what is the average build time", "how long do builds take", "mean run
+    Average, median and slowest build time over a window, one repo or all. SELECT THIS for "what is the average build time", "how long do builds take", "mean run
     time", "average duration of CI", "typical build time" — for one repository (repo) or across
     every followed repository (repo empty). One row over the window: completed runs, average,
     median-ish (the run at the 50th position), 90th-percentile and longest run time in minutes,
-    average queue seconds. Run time is updated_at − run_started_at on a completed run.
+    average queue seconds. Run time is updated_at − run_started_at on a completed run. Completed runs only: queued and running ones are not counted.
   params:
     repo:  { type: string, default: "", description: "Repository as owner/repo; empty = every followed repository." }
     days:  { type: int, default: 7, description: "Window in days ending now, at most 62; ignored when since is given." }
@@ -99,7 +99,7 @@
 
 - name: ActionsByActor
   description: >-
-    Who triggers the runs: per actor over a window, runs triggered, how many failed, and the
+    Runs and failures per actor who triggered them, over a window. Who triggers the runs: per actor over a window, runs triggered, how many failed, and the
     failure rate — most runs first. "Who triggered the most runs", "who runs the most builds",
     "runs by person", "who breaks the build most". NOTE: this realm holds no commits; actor is
     the GitHub login whose push, pull request or dispatch started the run.
@@ -126,7 +126,7 @@
 
 - name: ActionsRecentRuns
   description: >-
-    The runs in a window, newest first, each with its workflow, branch, trigger, conclusion,
+    A repository's runs in a window, newest first, with timing and outcome. The runs in a window, newest first, each with its workflow, branch, trigger, conclusion,
     queue time and run time in seconds, who triggered it, and its link. The base list —
     "show me this week's builds", "recent runs on main", "what ran today".
   params:
@@ -152,7 +152,7 @@
 
 - name: ActionsWorkflowSummary
   description: >-
-    SELECT THIS for anything PER WORKFLOW: "which workflow in owner/repo fails most often",
+    Per workflow over a window: runs, failure rate and run time. SELECT THIS for anything PER WORKFLOW: "which workflow in owner/repo fails most often",
     "how are the builds doing in owner/repo", "average build time per workflow", "failure rate
     by workflow", "CI health". One row per workflow over a window: runs, succeeded, failed,
     cancelled, failureRatePct, avgRunMinutes, longestRunMinutes, avgQueueSeconds — worst
@@ -185,7 +185,7 @@
 
 - name: ActionsSlowestRuns
   description: >-
-    SELECT THIS for "which build in owner/repo took the longest in the last N days", "slowest
+    The longest completed runs in a window, slowest first. SELECT THIS for "which build in owner/repo took the longest in the last N days", "slowest
     workflow runs in owner/repo", "slowest builds", "longest-running workflows": the longest
     completed runs in a window, slowest first, with runSeconds and runMinutes, queue time,
     workflow, branch and link. Follow a runId into ActionsRunJobs to see which job took the time.
@@ -216,7 +216,7 @@
 
 - name: ActionsFailedRuns
   description: >-
-    Runs that concluded failure in a window, newest first, with workflow, branch, trigger,
+    The runs that failed in a window, newest first. Runs that concluded failure in a window, newest first, with workflow, branch, trigger,
     attempt, who triggered it and link. "What failed this week", "failed builds on main",
     "which runs broke". Follow a runId into ActionsRunJobs for the failing job and step.
   params:
@@ -247,7 +247,7 @@
 
 - name: ActionsDailyRuns
   description: >-
-    Runs per calendar day (UTC) over a window with how many failed and the average run time,
+    Runs and failures per UTC day over a window: the trend line. Runs per calendar day (UTC) over a window with how many failed and the average run time,
     oldest day first — the trend line. "Builds per day", "is CI getting slower", "failure
     trend".
   params:
@@ -271,7 +271,7 @@
 
 - name: ActionsPassedOnRetry
   description: >-
-    Runs that succeeded only after being re-run (run_attempt above 1, conclusion success) — the
+    Runs that passed only after a re-run, newest first. Runs that succeeded only after being re-run (run_attempt above 1, conclusion success) — the
     run-level signal of flakiness, newest first. "Flaky builds", "what passed on retry", "how
     often do we re-run". Follow into ActionsFlakyJobs for the job names behind it.
   params:
@@ -297,7 +297,7 @@
 
 - name: ActionsWorkflows
   description: >-
-    The workflows a repository defines — name, file, state and link — including the dynamic
+    The workflows a repository defines, with file, state and link. Definitions only, not their runs (ActionsWorkflowSummary); includes the dynamic
     ones GitHub runs itself. "What workflows do we have", "which workflows are disabled".
   params:
     repo: { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }

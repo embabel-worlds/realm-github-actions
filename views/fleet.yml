@@ -5,9 +5,9 @@
 
 - name: ActionsWatchlist
   description: >-
-    The repositories this world follows — the watchlist behind the fleet views and the app's
+    The repositories this world follows for the fleet views. The repositories this world follows — the watchlist behind the fleet views and the app's
     picker. "Which repos are we following", "what repositories are watched". Add one with
-    gateway.repository.createEntry on ActionsWatch, or from the CI Health app.
+    gateway.repository.createEntry on ActionsWatch, or from the CI Health app. Only repositories someone added; nothing is discovered.
   cypher: |
     MATCH (w:ActionsWatch)
     RETURN w.id AS id, w.full_name AS repo, coalesce(w.branch, 'main') AS branch, w.note AS note
@@ -15,7 +15,7 @@
 
 - name: ActionsBrokenMains
   description: >-
-    Across every followed repository: is its watched branch (main, by default) red right now?
+    Which followed repositories have a red watched branch right now. Across every followed repository: is its watched branch (main, by default) red right now?
     For each repository, each workflow's LATEST completed run on that branch — the ones whose
     latest run failed are the broken mains. THE answer for "which mains are broken", "which
     repos are red", "is main green everywhere", "fleet CI status". One row per repository
@@ -49,7 +49,7 @@
 
 - name: ActionsBrokenPullRequests
   description: >-
-    Across every followed repository (or one, with repo): the pull-request branches whose
+    The pull-request branches whose latest run failed, newest first. Across every followed repository (or one, with repo): the pull-request branches whose
     LATEST completed run failed — the PRs that are red right now, newest first, with the PR
     title, branch, numbers where GitHub linked them, who pushed, and the run link. THE answer
     for "which PRs are broken", "which pull requests are failing CI", "red PRs".
@@ -84,7 +84,7 @@
 
 - name: ActionsWhatBroke
   description: >-
-    WHAT BROKE a branch: for each workflow whose latest completed run on the branch failed, the
+    The first failing run on a branch and the commit it built. WHAT BROKE a branch: for each workflow whose latest completed run on the branch failed, the
     last green run, the FIRST failing run after it, and the commit that first failing run built —
     author, message, and the files it changed. THE answer for "what broke main", "which commit
     broke the build", "what changed before the failure", "who broke the build and what did they

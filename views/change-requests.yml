@@ -18,7 +18,7 @@
 
 - name: ActionsChangeRequestBuildTime
   description: >-
-    SELECT THIS for "how long did CI take on each pull request in owner/repo", "PR build time",
+    CI runs, failures and minutes per pull request over a window. SELECT THIS for "how long did CI take on each pull request in owner/repo", "PR build time",
     "which pull request burned the most CI minutes this month", "how many builds did PR 123 need",
     "how many red builds did each PR have", "runner minutes per pull request". For the change
     requests OPENED in a window: one row per change request with its author and authorKind,
@@ -64,7 +64,7 @@
 
 - name: ActionsChangeRequestBuildTimeByAuthorKind
   description: >-
-    SELECT THIS for "do the agents' pull requests take longer to build than people's in
+    CI minutes and failures per pull request, by the author's kind. SELECT THIS for "do the agents' pull requests take longer to build than people's in
     owner/repo", "CI minutes per PR by author kind", "do assisted PRs fail CI more often", "how
     many builds does a human's pull request need compared with a coding agent's", "build time by
     author kind". For the change requests OPENED in a window whose commits a completed build ran
@@ -72,7 +72,7 @@
     plus a row for all of them together, with the change requests, their builds, the failed
     builds and that share (percent), the mean build in minutes, and the build minutes and runner
     minutes per change request. The same per-build jobs read as ActionsChangeRequestBuildTime, so
-    the same window advice: a fortnight or so on a busy repository.
+    the same window advice: a fortnight or so on a busy repository. Change requests with no completed build in the window are not counted.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
     since: { type: string, default: "2026-10-25T00:00:00Z", description: "ISO-8601 lower bound on the change request's openedAt, pushed to GitHub. The run history holds 62 days; the jobs hop allows 100 builds per question." }

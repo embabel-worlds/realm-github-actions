@@ -31,7 +31,13 @@
   batchSafe: false
   args:
     per_page: 100
-  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 10 }
+  paging: { style: page, param: page, sizeParam: per_page, size: 100, maxPages: 10, total: total_count }
+  # total_count is GitHub's count of the runs the request matched, filters included: "how many runs on
+  # main since Monday" is the first page's total_count, one call, however many pages it would take.
+  aggregates:
+    - measure: count
+      valueField: total_count
+      records: "$"
   # GitHub lists runs newest first by run id, so the latest N are on the first pages. Not by created_at: two
   # runs a second apart came back out of created_at order, the engine stopped trusting the declared order
   # and walked all ten pages for a view that wanted forty runs (37 s on the appliance, 2026-11-21).
@@ -106,6 +112,7 @@
     state: state
     html_url: html_url
   cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
+  pushdown: []   # the workflows list takes no filter: see above
   cache: { kind: ttl, seconds: 21600, negativeTtlSeconds: 3600 }
 
 # Jobs of ONE run, every attempt (filter=all), so a retry shows as the same job name twice
@@ -146,6 +153,7 @@
   cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
   # The jobs of a completed run never change; six hours is the window for the rare run still in
   # progress when it was opened. The envelope reports when each run's jobs were read.
+  pushdown: []   # the jobs list takes only `filter=latest|all`, which no property of a job maps to
   cache: { kind: ttl, seconds: 21600, negativeTtlSeconds: 600 }
 
 # The commit ONE run built. Composite key from the run (owner, repo, head_sha) onto the three
@@ -186,6 +194,7 @@
     filesChanged: "size(coalesce(r.files, []))"
     sourceUrl: "r.html_url"
   cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
+  pushdown: []   # one commit by its sha: there is nothing left to narrow
   cache: { kind: ttl, seconds: 604800, negativeTtlSeconds: 3600 }
 
 # Annotations of ONE job. A job id IS its check-run id. The CheckAnnotation join composes the
@@ -216,6 +225,7 @@
     raw_details: "CASE r.raw_details WHEN '' THEN null ELSE r.raw_details END"
   cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
   # Annotations of a finished check run never change.
+  pushdown: []   # the annotations list takes no filter
   cache: { kind: ttl, seconds: 86400, negativeTtlSeconds: 3600 }
 
 # THE HISTORY DOOR. Completed runs never change, so history is read as calendar DAYS
@@ -277,4 +287,7 @@
     finishedAt: "CASE r.status WHEN 'completed' THEN r.updated_at ELSE '' END"
     sourceUrl: "r.html_url"
   cost: { bucket: github-core, rate: 5000/hour, burst: 60 }
+  # Deliberately none: every window view shares these day reads, and a pushed branch or event would
+  # make each its own read of each day. The live door, runsByRepo, pushes them.
+  pushdown: []
   cache: { kind: ttl, seconds: 1800, negativeTtlSeconds: 1800 }
