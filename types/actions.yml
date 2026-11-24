@@ -27,7 +27,7 @@
 - name: Workflow
   visibility: internal
   userAnchor: false
-  description: "A workflow definition in a repository — the file under .github/workflows, or a dynamic one GitHub runs itself (Dependabot, Copilot). Reached from GitHubRepository via HAS_WORKFLOW. For runs, traverse HAS_WORKFLOW_RUN from the repository and filter on run.name or run.path; runs are not fetched per workflow."
+  description: "A workflow definition in a repository, identified by GitHub's workflow id (`id`) — the file under .github/workflows, or a dynamic one GitHub runs itself (Dependabot, Copilot). Reached from GitHubRepository via HAS_WORKFLOW. For runs, traverse HAS_WORKFLOW_RUN from the repository and filter on run.name or run.path; runs are not fetched per workflow."
   virtualJoins:
     - anchorLabel: GitHubRepository
       relationship: HAS_WORKFLOW
@@ -51,7 +51,7 @@
                                    # in the vocabulary's words, run.trigger, run.changeRequestKeys, run.actorKind — see producers/actions.yml
   visibility: internal
   userAnchor: false
-  description: "One run of a workflow, newest first, latest attempt only. Reached from GitHubRepository via HAS_WORKFLOW_RUN — up to the 1,000 most recent runs (10 pages of 100); a window older than that is reported PARTIAL. Timestamps are ISO strings: run time is updated_at minus run_started_at for a completed run; queue time is run_started_at minus created_at. conclusion is null while status is not 'completed'. A PUSH, in 'pushes to main', 'who breaks the build', 'broken pushes', is a run with event = 'push' (trigger = 'push' in the vocabulary's word) AND head_branch = the branch asked about (main unless another is named) AND status = 'completed'; a pull request's run is event = 'pull_request' or 'pull_request_target' and belongs to the PR, not to the branch, and 'dynamic/' paths are GitHub's own checks, not the repository's workflows. Without the branch filter every branch's pushes count, and the figure is several times larger than the one the realm's views give. A question that names NO repository means every followed repository: start at (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run) and group by w.full_name; a bare (r:GitHubRepository) with no full_name matches nothing. Filter on PROJECTED variables (WITH run, run.created_at AS createdAt, run.status AS status WHERE …), never on run.<property> directly, and limit by collect + list slice rather than LIMIT — that is what lets the query share the cached history instead of re-reading GitHub. On HAS_WORKFLOW_RUN (live) a literal created_at lower bound is pushed to GitHub."
+  description: "One run of a workflow, identified by GitHub's run id (`id`, a string), newest first, latest attempt only. Reached from GitHubRepository via HAS_WORKFLOW_RUN — up to the 1,000 most recent runs (10 pages of 100); a window older than that is reported PARTIAL. Timestamps are ISO strings: run time is updated_at minus run_started_at for a completed run; queue time is run_started_at minus created_at. conclusion is null while status is not 'completed'. A PUSH, in 'pushes to main', 'who breaks the build', 'broken pushes', is a run with event = 'push' (trigger = 'push' in the vocabulary's word) AND head_branch = the branch asked about (main unless another is named) AND status = 'completed'; a pull request's run is event = 'pull_request' or 'pull_request_target' and belongs to the PR, not to the branch, and 'dynamic/' paths are GitHub's own checks, not the repository's workflows. Without the branch filter every branch's pushes count, and the figure is several times larger than the one the realm's views give. A question that names NO repository means every followed repository: start at (w:ActionsWatch)-[:HAS_RUN_HISTORY]->(run) and group by w.full_name; a bare (r:GitHubRepository) with no full_name matches nothing. Filter on PROJECTED variables (WITH run, run.created_at AS createdAt, run.status AS status WHERE …), never on run.<property> directly, and limit by collect + list slice rather than LIMIT — that is what lets the query share the cached history instead of re-reading GitHub. On HAS_WORKFLOW_RUN (live) a literal created_at lower bound is pushed to GitHub."
   virtualJoins:
     - anchorLabel: GitHubRepository
       relationship: HAS_WORKFLOW_RUN
@@ -135,7 +135,7 @@
     head_branch: "Branch the run was for, e.g. main."
     head_sha: "Commit the run built."
     event: "What triggered it: push, pull_request, schedule, workflow_dispatch, ..."
-    status: "queued, in_progress, completed, ..."
+    status: { type: string, description: "The run's state as GitHub reports it; conclusion is set only once completed.", values: [requested, queued, pending, waiting, in_progress, completed, action_required] }
     conclusion: "success, failure, cancelled, skipped, timed_out, action_required, or null until completed."
     run_number:
       type: int
@@ -160,7 +160,7 @@
 - name: WorkflowJob
   visibility: internal
   userAnchor: false
-  description: "One job of a run — the unit that ran on a runner, e.g. 'build (ubuntu-latest)'. Reached from WorkflowRun via HAS_JOB, ALL attempts included, so a job name appearing with both 'failure' and 'success' under one run passed on retry. One API call per run: narrow the runs (LIMIT, a conclusion, a window) BEFORE this hop. step_names and step_conclusions are parallel lists; a failed step is a name whose conclusion is 'failure'."
+  description: "One job of a run, identified by GitHub's job id (`id`) — the unit that ran on a runner, e.g. 'build (ubuntu-latest)'. Reached from WorkflowRun via HAS_JOB, ALL attempts included, so a job name appearing with both 'failure' and 'success' under one run passed on retry. One API call per run: narrow the runs (LIMIT, a conclusion, a window) BEFORE this hop. step_names and step_conclusions are parallel lists; a failed step is a name whose conclusion is 'failure'."
   virtualJoins:
     - anchorLabel: WorkflowRun
       relationship: HAS_JOB
@@ -183,12 +183,12 @@
       type: int
       description: "Which attempt of the run this job ran in."
     name: "Job name as the workflow defines it, matrix suffix included."
-    status: "queued, in_progress, completed."
+    status: { type: string, description: "The job's state as GitHub reports it; conclusion is set only once completed.", values: [requested, queued, pending, waiting, in_progress, completed] }
     conclusion: "success, failure, cancelled, skipped, or null until completed."
     started_at: "When the job started on a runner (ISO 8601)."
     completed_at: "When it finished (ISO 8601). Minus started_at is the job's run time."
     runner_name: "The runner that ran it."
-    runner_group_name: "The runner group."
+    runner_group_name: "The runner group the runner belongs to: 'GitHub Actions' for GitHub-hosted runners, an organisation's own group name for self-hosted ones."
     labels: "Runner labels requested, e.g. ubuntu-latest."
     workflow_name: "Name of the workflow this job's run belongs to."
     head_branch: "Branch of the run."
@@ -201,7 +201,7 @@
                                    # when a Co-Authored-By trailer names a coding agent, the common case for agent-written code
   visibility: internal
   userAnchor: false
-  description: "The commit a run BUILT — its message, author, and the files it changed. Reached from WorkflowRun via BUILT (one call per run, so narrow the runs first). For 'what broke main' take the first failing run after the last green one and read its commit; for a push of several commits this is the head commit, and parents names the one before it."
+  description: "The commit a run BUILT, identified by its `sha` — its message, author, and the files it changed. Reached from WorkflowRun via BUILT (one call per run, so narrow the runs first). For 'what broke main' take the first failing run after the last green one and read its commit; for a push of several commits this is the head commit, and parents names the one before it."
   virtualJoins:
     - anchorLabel: WorkflowRun
       relationship: BUILT
@@ -228,6 +228,7 @@
     parents: "Shas of the parent commits — the commit before this one."
     url: "Link to the commit on GitHub."
 
+# No identity: GitHub gives an annotation no id of its own, and none of its fields is unique alone.
 - name: CheckAnnotation
   visibility: internal
   userAnchor: false

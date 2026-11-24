@@ -4,11 +4,11 @@
 
 - name: ActionsFailureThemes
   description: >-
-    The recurring THEMES in recent failures: reads the failed jobs of the newest failed runs in
+    The recurring causes behind recent failed runs, named by a model. The recurring THEMES in recent failures: reads the failed jobs of the newest failed runs in
     a window, the step that broke and the failure annotations GitHub attached, and names the
     handful of underlying causes. "Why do our builds fail", "what are the common failure
     causes", "summarise the failures". Costs a model call; ActionsFailingSteps is the count
-    underneath it.
+    underneath it. Only the newest failed runs of the window are read, not every failure.
   params:
     repo:  { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
     days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }
@@ -42,10 +42,10 @@
 
 - name: ActionsBriefing
   description: >-
-    The paragraph for a standup: reads the per-workflow summary and the failing steps of a
+    A standup paragraph on CI health over a window, written by a model. The paragraph for a standup: reads the per-workflow summary and the failing steps of a
     window and says how CI is doing, what is failing and where the time goes. "How is CI",
     "brief me on the builds", "CI status for standup". Costs a model call; every figure it
-    cites comes from ActionsWorkflowSummary and ActionsFailingSteps.
+    cites comes from ActionsWorkflowSummary and ActionsFailingSteps; it does not read outside the window.
   params:
     repo: { type: string, default: "embabel/embabel-agent", description: "Repository as owner/repo." }
     days:  { type: int, default: 7, description: "Window in days ending now, at most 62 (the history door's depth); ignored when since is given." }

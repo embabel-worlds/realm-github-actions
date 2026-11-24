@@ -10,7 +10,7 @@
 
 - name: ActionsBreakageByAuthorKind
   description: >-
-    SELECT THIS for "are humans or machines more likely to break the build in owner/repo", "do
+    Build failure rate by who wrote the commit: person, bot, agent, assisted. SELECT THIS for "are humans or machines more likely to break the build in owner/repo", "do
     agent-written commits fail CI more often than people's", "build failure rate by author kind",
     "who breaks main — people, bots or coding agents", "do Claude's commits break the build". For
     the completed runs the pushes to a branch triggered in a window: one row per authorKind of the

@@ -283,6 +283,19 @@ else:
     print('SKIP L2: ActionsFailureThemes (no failures in window)')
 
 # ---- L3: the battery.
+# ---- L3 cost: a count GitHub reports is counted at GitHub. Every run on the default branch is
+# total_count on one page, however many pages listing them would take.
+default_branch = gh(f'/repos/{REPO}', {})['default_branch']
+truth_total = gh(f'/repos/{REPO}/actions/runs', {'branch': default_branch, 'per_page': 1})['total_count']
+d = post('/api/v1/admin/kg/execute', {'cypher': f"""
+  MATCH (r:GitHubRepository {{full_name: '{REPO}'}})-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun {{head_branch: '{default_branch}'}})
+  RETURN count(run) AS n""", 'ai': {'fresh': True}})
+r3 = rows_of(d)
+m = d.get('metrics') or {}
+calls = m.get('externalCalls', m.get('apiCalls'))
+check(bool(r3) and r3[0]['n'] == truth_total, f'L3: runs on {default_branch} counted == GitHub total_count', f'{r3} vs {truth_total}')
+check(calls == 1, f'L3: that count is one call (total_count, not {truth_total // 100 + 1} pages)', f'externalCalls={calls}')
+
 try:
     import yaml
 except ImportError:
