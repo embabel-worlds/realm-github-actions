@@ -32,28 +32,11 @@ def rows_of(d):
     rows = d.get('rows') or (d.get('data') or {}).get('rows') if isinstance(d.get('data'), dict) else d.get('rows') or d.get('data')
     return rows if isinstance(rows, list) else []
 
-# Warning codes that mean rows or values may be missing. A source that failed under load, a capped
-# page or a hop past its anchors leaves rows that still look like an answer, and a figure read off
-# them reports drift that is GitHub's, not the realm's. Cost notes (FILTERED_IN_GRAPH,
-# AGGREGATE_NOT_PUSHED, EMPTY_NOT_KEPT, PUSHDOWN_VALUE_UNMATCHED), an honest FILTER_STARVED empty,
-# STALE_COPY, FIELDS_WITHHELD and UNKNOWN_VIA leave every row in place.
-SHORT_CODES = ('PARTIAL_RESULT', 'PRODUCER_ERROR', 'NEEDS_FILTER', 'NEEDS_PRODUCER', 'FILTER_REJECTED',
-               'UNPUSHED_FILTER', 'AMBIGUOUS_LABEL', 'INCOMPLETE_TRAVERSAL', 'INCOMPLETE_RANKING',
-               'INCOMPLETE_AGGREGATE', 'INCOMPLETE_INPUT', 'MATERIALIZATION_FAILED', 'REDUCTION_FAILED',
-               'UNPARSEABLE_ANSWER', 'TERMS_UNAVAILABLE', 'COMPUTE_FAILED', 'PROPERTY_NOT_STORED',
-               'FOLLOW_CAPPED', 'UNLINKED_CHILDREN', 'RESOLUTION_DROPPED', 'AGENTIC_DEGRADED',
-               'SOURCE_UNANSWERED')
-SHORT_REASONS = ('UNBOUNDED', 'PARTIAL_NOT_MATCHED', 'UNPUSHED_FILTER', 'DISCONNECTED',
-                 'INTERNAL_ERROR', 'WRITE_IN_PROGRESS', 'KILLED', 'TOO_EXPENSIVE')
-def short(d, figure=None):
-    """None when the engine says this answer is whole; else `REFUSED: <why>` or `PARTIAL <figure>: <reason>`."""
-    tag = 'PARTIAL' if figure is None else f'PARTIAL {figure}'
-    if d.get('error'): return f'REFUSED: {str(d["error"])[:200]}'
-    if d.get('run'): return f'{tag}: the run had not finished'
-    ws = [w for w in d.get('warnings') or [] if isinstance(w, str) and w.split(':', 1)[0].strip() in SHORT_CODES]
-    if ws: return f'{tag}: {ws[0][:200]}'
-    if d.get('reason') in SHORT_REASONS: return f'{tag}: reason {d["reason"]}'
-    return None
+# Whether an answer is the whole truth is the engine's to say, beside the rows: short() from the
+# battery library (tests/lib, pinned from embabel-worlds/realm-spec) is None when it is, else the
+# line to print in place of the figure, `REFUSED: <why>` or `PARTIAL <figure>: <the engine's reason>`.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+from short import short  # noqa: E402
 
 # What the latest engine answer said about itself. Every check reads the rows of the call before it,
 # so a short answer fails each check made from it, with the engine's reason, until the next call.
