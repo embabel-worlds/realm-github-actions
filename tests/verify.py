@@ -32,6 +32,37 @@ def rows_of(d):
     rows = d.get('rows') or (d.get('data') or {}).get('rows') if isinstance(d.get('data'), dict) else d.get('rows') or d.get('data')
     return rows if isinstance(rows, list) else []
 
+# Warning codes that mean rows or values may be missing. A source that failed under load, a capped
+# page or a hop past its anchors leaves rows that still look like an answer, and a figure read off
+# them reports drift that is GitHub's, not the realm's. Cost notes (FILTERED_IN_GRAPH,
+# AGGREGATE_NOT_PUSHED, EMPTY_NOT_KEPT, PUSHDOWN_VALUE_UNMATCHED), an honest FILTER_STARVED empty,
+# STALE_COPY, FIELDS_WITHHELD and UNKNOWN_VIA leave every row in place.
+SHORT_CODES = ('PARTIAL_RESULT', 'PRODUCER_ERROR', 'NEEDS_FILTER', 'NEEDS_PRODUCER', 'FILTER_REJECTED',
+               'UNPUSHED_FILTER', 'AMBIGUOUS_LABEL', 'INCOMPLETE_TRAVERSAL', 'INCOMPLETE_RANKING',
+               'INCOMPLETE_AGGREGATE', 'INCOMPLETE_INPUT', 'MATERIALIZATION_FAILED', 'REDUCTION_FAILED',
+               'UNPARSEABLE_ANSWER', 'TERMS_UNAVAILABLE', 'COMPUTE_FAILED', 'PROPERTY_NOT_STORED',
+               'FOLLOW_CAPPED', 'UNLINKED_CHILDREN', 'RESOLUTION_DROPPED', 'AGENTIC_DEGRADED',
+               'SOURCE_UNANSWERED')
+SHORT_REASONS = ('UNBOUNDED', 'PARTIAL_NOT_MATCHED', 'UNPUSHED_FILTER', 'DISCONNECTED',
+                 'INTERNAL_ERROR', 'WRITE_IN_PROGRESS', 'KILLED', 'TOO_EXPENSIVE')
+def short(d, figure=None):
+    """None when the engine says this answer is whole; else `REFUSED: <why>` or `PARTIAL <figure>: <reason>`."""
+    tag = 'PARTIAL' if figure is None else f'PARTIAL {figure}'
+    if d.get('error'): return f'REFUSED: {str(d["error"])[:200]}'
+    if d.get('run'): return f'{tag}: the run had not finished'
+    ws = [w for w in d.get('warnings') or [] if isinstance(w, str) and w.split(':', 1)[0].strip() in SHORT_CODES]
+    if ws: return f'{tag}: {ws[0][:200]}'
+    if d.get('reason') in SHORT_REASONS: return f'{tag}: reason {d["reason"]}'
+    return None
+
+# What the latest engine answer said about itself. Every check reads the rows of the call before it,
+# so a short answer fails each check made from it, with the engine's reason, until the next call.
+last_short = None
+def read(d):
+    global last_short
+    last_short = short(d, len(rows_of(d)))
+    return d
+
 def view(name, args):
     """A view's rows and warnings. A 400 is the host refusing an argument the view does not declare
     (the fleet views take no `repo`); it is retried bare once, and any other refusal is returned as a
@@ -42,11 +73,16 @@ def view(name, args):
         body = e.read().decode(errors='replace')[:200]
         if e.code == 400 and 'repo' in args:
             return view(name, {k: v for k, v in args.items() if k != 'repo'})
+        global last_short
+        last_short = f'REFUSED: HTTP {e.code}: {body}'
         return [], [f'HTTP {e.code} running view {name} with {args}: {body}']
+    read(d)
     return rows_of(d), d.get('warnings') or []
 
 fails = []
-def check(cond, label, detail=''):
+def check(cond, label, detail='', whole=True):
+    """`whole=False` for a check that judges its answers' shortness itself."""
+    if whole and last_short: cond, detail = False, last_short
     print(('ok   ' if cond else 'FAIL ') + label + (f'  [{detail}]' if detail and not cond else ''))
     if not cond: fails.append(label)
 
@@ -95,10 +131,10 @@ print('L0', json.dumps({k: v for k, v in L0.items() if k not in ('workflows', 'd
 check(L0['runs'] > 0, 'L0: the window holds runs (a repository with none cannot verify anything)')
 
 # ---- L1: the traversal, through the engine, same window.
-d = post('/api/v1/admin/kg/execute', {'cypher': f"""
+d = read(post('/api/v1/admin/kg/execute', {'cypher': f"""
   MATCH (r:GitHubRepository {{full_name: '{REPO}'}})-[:HAS_WORKFLOW_RUN]->(run:WorkflowRun)
   WHERE run.created_at >= '{SINCE}' AND run.created_at < '{UNTIL}'
-  RETURN count(run) AS n, sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed"""})
+  RETURN count(run) AS n, sum(CASE WHEN run.conclusion = 'failure' THEN 1 ELSE 0 END) AS failed"""}))
 r1 = rows_of(d)
 check(bool(r1) and r1[0]['n'] == L0['runs'], 'L1: traversal run count == GitHub', f'{r1} vs {L0["runs"]}')
 check(bool(r1) and r1[0]['failed'] == L0['failed'], 'L1: traversal failed count == GitHub')
@@ -291,7 +327,7 @@ schema_status, schema_raw = get('/api/v1/admin/kg/schema')
 schema_text = schema_raw.decode(errors='replace')
 declared = set(re.findall(r'[A-Za-z_][A-Za-z0-9_]*', schema_text))
 def ask(q):
-    d = post('/api/v1/admin/kg/ask', {'question': q})
+    d = read(post('/api/v1/admin/kg/ask', {'question': q}))
     return rows_of(d), d.get('cypher') or d.get('query') or '', d
 def top_figure(rows, column):
     for r in rows:
@@ -316,7 +352,7 @@ for entry in battery:
                 print(f'ok   L3 adversarial "{q}" #{i+1}: refused ({str(e)[:60]})'); continue
             props = set(re.findall(r'\.([A-Za-z_][A-Za-z0-9_]*)', cypher))
             unknown = [p for p in props if p not in declared]
-            check(not rows or not unknown, f'L3 adversarial "{q}" #{i+1}: no rows, or only declared properties', f'rows={len(rows)} unknown={unknown} cypher={cypher[:120]}')
+            check(not rows or not unknown, f'L3 adversarial "{q}" #{i+1}: no rows, or only declared properties', f'rows={len(rows)} unknown={unknown} cypher={cypher[:120]}', whole=False)
         continue
     try:
         rows, cypher, d = ask(q)
@@ -326,6 +362,7 @@ for entry in battery:
         mv = exp['matchesView']
         for attempt in range(2):   # generation is stochastic: a figure that matches once in two is not stable
             if attempt: rows, cypher, d = ask(q)
+            asked = short(d, len(rows))
             # When the pipeline SELECTED the view it binds its own window (a date literal); reconcile
             # against the view run with THAT window, so a bound-but-honest window is not a failure
             # and a composed query with a different figure still is.
@@ -337,18 +374,21 @@ for entry in battery:
             if m_until and not m_until.group(1).startswith('9999'): args['until'] = norm(m_until.group(1))
             vrows, _ = view(mv['name'], args)
             want = top_figure(vrows, mv['column'])
+            # The ask's figure and the view's must both be whole: a short one reconciles nothing.
+            shortfall = asked or last_short
             if isinstance(want, str):
                 got_s = set(str(x) for r in rows for x in r.values() if isinstance(x, str))
-                check(want in got_s, f'L3 "{q}" #{attempt+1} == {mv["name"]}.{mv["column"]}', f'want {want} in {sorted(got_s)[:8]} cypher={cypher[:140]}')
+                check(not shortfall and want in got_s, f'L3 "{q}" #{attempt+1} == {mv["name"]}.{mv["column"]}', shortfall or f'want {want} in {sorted(got_s)[:8]} cypher={cypher[:140]}', whole=False)
                 continue
             got = figures(rows)
-            check(want is not None and round(float(want), 1) in got, f'L3 "{q}" #{attempt+1} == {mv["name"]}.{mv["column"]}', f'want {want} in {sorted(got)[:12]} cypher={cypher[:140]}')
+            check(not shortfall and want is not None and round(float(want), 1) in got, f'L3 "{q}" #{attempt+1} == {mv["name"]}.{mv["column"]}', shortfall or f'want {want} in {sorted(got)[:12]} cypher={cypher[:140]}', whole=False)
     elif exp.get('nonEmpty'):
         check(len(rows) > 0, f'L3 "{q}" non-empty', f'cypher={cypher[:140]}')
     else:
         check(len(rows) >= int(exp.get('minRows', 0)), f'L3 "{q}" runs', f'rows={len(rows)}')
 
-# ---- L5: the app is served.
+# ---- L5: the app is served. Nothing here is an engine answer, so none of L3's can fail it.
+last_short = None
 try:
     st, body = get('/apps/github-actions/CI-Health.html')
     check(st == 200 and b'ci-health' in body, 'L5: app ci-health served at /apps/github-actions/CI-Health.html')
