@@ -31,6 +31,7 @@
     WHERE createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
       AND branch = coalesce(w.branch, 'main')
       AND status = 'completed'
     WITH w, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run
@@ -66,6 +67,7 @@
       AND createdAt >= $since
       AND createdAt < $until
       AND ($since <> '1970-01-01T00:00:00Z' OR datetime(createdAt) >= datetime() - duration({days: $days}))
+      AND ($since <> '1970-01-01T00:00:00Z' OR run.day >= toString(date() - duration({days: $days})))
       AND event = 'pull_request'
       AND status = 'completed'
     WITH w, run.head_branch AS branch, CASE WHEN run.path STARTS WITH 'dynamic/' THEN 'dynamic: ' + split(run.path, '/')[1] ELSE run.name END AS workflow, run
